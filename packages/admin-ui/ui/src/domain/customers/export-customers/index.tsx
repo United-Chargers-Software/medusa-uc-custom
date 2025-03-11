@@ -81,10 +81,10 @@ const ExportCustomersModal: React.FC<ExportModalProps> = ({ handleClose, title, 
         <Modal.Content>
           <div className="flex flex-row items-center justify-start gap-4">
             <div className="basis-1/2">
-              <DateSelect selectedDate={startDate} setDate={setStartDate} filterTitle="From date" />
+              <DateSelect selectedDate={startDate} setDate={setStartDate} filterTitle="from date" />
             </div>
             <div className="basis-1/2">
-              <DateSelect selectedDate={endDate} setDate={setEndDate} filterTitle="To date" />
+              <DateSelect selectedDate={endDate} setDate={setEndDate} filterTitle="to date" />
             </div>
           </div>
           <ExportCustomerQuickFilters
