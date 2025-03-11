@@ -42,8 +42,7 @@ const DatePicker: React.FC<DateTimePickerProps> = ({
       return;
     }
 
-    onSubmitDate(date);
-    setIsOpen(false);
+    setTempDate(date);
   };
 
   const submitDate = () => {
@@ -132,6 +131,7 @@ export const CalendarComponent = ({ date, onChange, greyPastDates = true }: Cale
   <ReactDatePicker
     selected={date}
     inline
+    adjustDateOnChange
     onChange={onChange}
     calendarClassName="date-picker"
     dayClassName={d => getDateClassname(d, date, greyPastDates)}
