@@ -5,6 +5,10 @@ import clsx from 'clsx';
 
 const filters = [
   {
+    name: 'All time',
+    value: 'all',
+  },
+  {
     name: 'Last year',
     value: 'year',
   },
@@ -31,25 +35,46 @@ const ExportCustomerQuickFilters: React.FC<ExportCustomerQuickFiltersProps> = ({
 
   const handleQuickFilters = (filter: string) => {
     switch (filter) {
-      case 'year': {
+      case 'all': {
+        const firstDay2023UTC = new Date(Date.UTC(2023, 0, 1));
         const date = new Date();
-        const yearAgo = date.getFullYear() - 1;
+
+        handleStartDateChange(firstDay2023UTC);
         handleEndDateChange(date);
-        handleStartDateChange(new Date(yearAgo, date.getMonth(), date.getDate()));
+        break;
+      }
+      case 'year': {
+        const firstDay = new Date(Date.UTC(new Date().getFullYear() - 1, 0, 1));
+        const lastDay = new Date(Date.UTC(new Date().getFullYear() - 1, 11, 31));
+
+        handleStartDateChange(firstDay);
+        handleEndDateChange(lastDay);
         break;
       }
       case 'month': {
-        const date = new Date();
-        const monthAgo = date.getMonth() - 1;
-        handleEndDateChange(date);
-        handleStartDateChange(new Date(date.getFullYear(), monthAgo, date.getDate()));
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+
+        const firstDay = new Date(year, month - 1, 1);
+        const lastDay = new Date(year, month, 0);
+
+        handleStartDateChange(firstDay);
+        handleEndDateChange(lastDay);
         break;
       }
       case 'week': {
-        const date = new Date();
-        const weekAgo = date.getDate() - 7;
-        handleEndDateChange(date);
-        handleStartDateChange(new Date(date.getFullYear(), date.getMonth(), weekAgo));
+        const now = new Date();
+        const dayOfWeek = now.getDay();
+
+        const firstDay = new Date(now);
+        firstDay.setDate(now.getDate() - dayOfWeek - 6);
+
+        const lastDay = new Date(now);
+        lastDay.setDate(now.getDate() - dayOfWeek);
+
+        handleStartDateChange(firstDay);
+        handleEndDateChange(lastDay);
         break;
       }
       default:

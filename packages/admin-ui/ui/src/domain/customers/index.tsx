@@ -10,8 +10,6 @@ import Details from './details';
 import CustomerGroups from './groups';
 import CustomersPageTableHeader from './header';
 import ExportIcon from '../../components/fundamentals/icons/export-icon';
-import { MEDUSA_BACKEND_URL_NOSLASH } from '../../constants/medusa-backend-url';
-import openUrlNewWindow from '../../utils/open-link-new-window';
 import useToggleState from '../../hooks/use-toggle-state';
 import ExportCustomersModal from './export-customers';
 

@@ -6,7 +6,6 @@ import moment from 'moment';
 import openUrlNewWindow from '../../../utils/open-link-new-window';
 import DatePicker from '../../../components/atoms/date-picker/date-picker';
 import ExportCustomerQuickFilters from './export-customer-quick-filters';
-import { useMedusa } from 'medusa-react';
 import Checkbox from '../../../components/atoms/checkbox';
 
 type ExportModalProps = {
@@ -82,10 +81,10 @@ const ExportCustomersModal: React.FC<ExportModalProps> = ({ handleClose, title, 
         <Modal.Content>
           <div className="flex flex-row items-center justify-start gap-4">
             <div className="basis-1/2">
-              <DateSelect selectedDate={startDate} setDate={setStartDate} filterTitle="From date" />
+              <DateSelect selectedDate={startDate} setDate={setStartDate} filterTitle="from date" />
             </div>
             <div className="basis-1/2">
-              <DateSelect selectedDate={endDate} setDate={setEndDate} filterTitle="To date" />
+              <DateSelect selectedDate={endDate} setDate={setEndDate} filterTitle="to date" />
             </div>
           </div>
           <ExportCustomerQuickFilters
@@ -93,7 +92,7 @@ const ExportCustomersModal: React.FC<ExportModalProps> = ({ handleClose, title, 
             handleEndDateChange={handleEndDateChange}
           />
           <div className="mb-4 block h-[1px] bg-gray-200" />
-          <Checkbox label="Only resellers" onChange={handleCheckboxChange} checked={onlyResellers} />
+          <Checkbox label="Only partners" onChange={handleCheckboxChange} checked={onlyResellers} />
         </Modal.Content>
         <Modal.Footer>
           <div className="flex w-full justify-end gap-4">
