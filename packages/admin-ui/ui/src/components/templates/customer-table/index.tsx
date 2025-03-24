@@ -1,7 +1,7 @@
 import { isEmpty } from 'lodash';
 import { useAdminCustomers } from 'medusa-react';
 import qs from 'qs';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { usePagination, useTable } from 'react-table';
@@ -28,6 +28,10 @@ const CustomerTable = () => {
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<string | null>(null);
 
+  // Sort state
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<string | null>(null);
+
   const {
     reset,
     paginate,
@@ -36,6 +40,7 @@ const CustomerTable = () => {
     representationObject,
     setFilters,
     filters,
+    // setGroupsFilter,
     removeTab,
     setTab,
     saveTab,
@@ -54,12 +59,12 @@ const CustomerTable = () => {
   //   // General search query
   //   ...(queryObject.q && !queryObject.email && !queryObject.name && { q: queryObject.q, groups: [] }),
 
-  //   // // Email filtering
+  //   // Email filter
   //   ...(queryObject.email && {
   //     email: queryObject.email,
   //   }),
 
-  //   // // Name filter
+  //   // Name filter
   //   ...(queryObject.name && {
   //     q: queryObject.name,
   //   }),
@@ -70,7 +75,7 @@ const CustomerTable = () => {
   //   // Country filter
   //   ...(queryObject.countryCode && { countryCode: queryObject.countryCode }),
 
-  //   // // City filter
+  //   // City filter
   //   ...(queryObject.city && {
   //     city: queryObject.city,
   //   }),

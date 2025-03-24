@@ -30,7 +30,7 @@ const DiscountIndex = () => {
       const now = new Date();
       const expiredDiscounts =
         discounts?.filter(d => {
-          if (d.is_disabled) return false;
+          if (d.is_disabled) return;
 
           const isExpired = d.ends_at && new Date(d.ends_at) < now;
           const isLimitReached = d.usage_limit && d.usage_count >= d.usage_limit;

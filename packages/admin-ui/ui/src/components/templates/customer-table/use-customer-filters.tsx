@@ -48,7 +48,7 @@ const allowedFilters = [
   'limit',
   'groups',
   'countryCode',
-  // 'email', 'city', 'name'
+  // , 'email', 'city', 'name'
 ];
 
 const reducer = (state: CustomerFilterState, action: CustomerFilterAction): CustomerFilterState => {
@@ -270,7 +270,6 @@ export const useCustomerFilters = (existing?: string, defaultFilters: CustomerDe
     //   toQuery['q'] = state.query;
     // }
 
-    // // Handle other filters
     // if (state.email?.open && state.email?.filter) {
     //   toQuery['email'] = state.email.filter;
     // }
