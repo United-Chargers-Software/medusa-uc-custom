@@ -27,9 +27,16 @@ const DiscountIndex = () => {
     const updateExpiredDiscounts = async () => {
       if (!discounts) return;
 
-      const expiredDiscounts = discounts.filter(
-        d => d.is_disabled === false && (d.ends_at ? new Date(d.ends_at) < new Date() : false),
-      );
+      const now = new Date();
+      const expiredDiscounts =
+        discounts?.filter(d => {
+          if (d.is_disabled) return false;
+
+          const isExpired = d.ends_at && new Date(d.ends_at) < now;
+          const isLimitReached = d.usage_limit && d.usage_count >= d.usage_limit;
+
+          return isExpired || isLimitReached;
+        }) || [];
 
       if (expiredDiscounts.length === 0) return;
 

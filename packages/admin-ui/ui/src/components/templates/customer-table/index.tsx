@@ -9,18 +9,24 @@ import DetailsIcon from '../../fundamentals/details-icon';
 import EditIcon from '../../fundamentals/icons/edit-icon';
 import Table from '../../molecules/table';
 import TableContainer from '../../organisms/table-container';
+import CustomerFilters from '../customer-filter-dropdown';
+import CustomerSortDropdown from '../customer-sort-dropdown';
 import { useCustomerColumns } from './use-customer-columns';
 import { useCustomerFilters } from './use-customer-filters';
+import useCustomersByGroup from '../../../hooks/use-customers-by-group';
 
 const DEFAULT_PAGE_SIZE = 15;
 
 const defaultQueryProps = {
   expand: 'orders,groups,billing_address',
+  fields: 'id,email,first_name,last_name,created_at,orders_count',
 };
 
 const CustomerTable = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<string | null>(null);
 
   const {
     reset,
@@ -28,31 +34,78 @@ const CustomerTable = () => {
     setQuery: setFreeText,
     queryObject,
     representationObject,
+    setFilters,
+    filters,
+    removeTab,
+    setTab,
+    saveTab,
+    availableTabs: filterTabs,
+    activeFilterTab,
   } = useCustomerFilters(location.search, defaultQueryProps);
 
   const offs = parseInt(queryObject.offset) || 0;
   const lim = parseInt(queryObject.limit) || DEFAULT_PAGE_SIZE;
 
-  const { customers, isLoading, count } = useAdminCustomers(
-    {
-      ...queryObject,
-    },
-    {
-      keepPreviousData: true,
-    },
-  );
+  // const customersBody = {
+  //   limit: queryObject.limit,
+  //   offset: queryObject.offset,
+  //   expand: queryObject.expand,
+
+  //   // General search query
+  //   ...(queryObject.q && !queryObject.email && !queryObject.name && { q: queryObject.q, groups: [] }),
+
+  //   // // Email filtering
+  //   ...(queryObject.email && {
+  //     email: queryObject.email,
+  //   }),
+
+  //   // // Name filter
+  //   ...(queryObject.name && {
+  //     q: queryObject.name,
+  //   }),
+
+  //   // Groups filter
+  //   ...(queryObject.groups && { groups: queryObject.groups }),
+
+  //   // Country filter
+  //   ...(queryObject.countryCode && { countryCode: queryObject.countryCode }),
+
+  //   // // City filter
+  //   ...(queryObject.city && {
+  //     city: queryObject.city,
+  //   }),
+  // };
+
+  // const { customers, isLoading, count } = useAdminCustomers(customersBody, {
+  //   keepPreviousData: true,
+  // });
+
+  const { customersData } = useCustomersByGroup({
+    groupName: queryObject?.groups || 'all',
+    sortBy: sortBy || 'created_at',
+    sortDirection: sortDirection || 'desc',
+    offset: queryObject.offset || 0,
+    limit: queryObject.limit || DEFAULT_PAGE_SIZE,
+    q: queryObject.q,
+    countryCode: queryObject.countryCode,
+  });
 
   const [query, setQuery] = useState(queryObject.query);
   const [numPages, setNumPages] = useState(0);
 
   useEffect(() => {
-    if (typeof count !== 'undefined') {
-      const controlledPageCount = Math.ceil(count / lim);
+    if (typeof customersData.total !== 'undefined') {
+      const controlledPageCount = Math.ceil(customersData.total / lim);
       setNumPages(controlledPageCount);
     }
-  }, [count]);
+  }, [customersData.total]);
 
   const [columns] = useCustomerColumns();
+
+  const handleSortChange = (newSortBy: string | null, newSortDirection: string | null) => {
+    setSortBy(newSortBy);
+    setSortDirection(newSortDirection);
+  };
 
   const {
     getTableProps,
@@ -66,12 +119,11 @@ const CustomerTable = () => {
     gotoPage,
     nextPage,
     previousPage,
-    // Get the state from the instance
     state: { pageIndex },
   } = useTable(
     {
       columns,
-      data: customers || [],
+      data: customersData.customers || [],
       manualPagination: true,
       initialState: {
         pageSize: lim,
@@ -91,7 +143,6 @@ const CustomerTable = () => {
         gotoPage(0);
       } else {
         if (typeof query !== 'undefined') {
-          // if we delete query string, we reset the table view
           reset();
         }
       }
@@ -123,7 +174,7 @@ const CustomerTable = () => {
 
   const updateUrlFromFilter = (obj = {}) => {
     const stringified = qs.stringify(obj);
-    window.history.replaceState(`/a/discounts`, '', `${`?${stringified}`}`);
+    window.history.replaceState(`/a/customers`, '', `${`?${stringified}`}`);
   };
 
   const refreshWithFilters = () => {
@@ -136,30 +187,65 @@ const CustomerTable = () => {
     }
   };
 
+  const clearFilters = () => {
+    reset();
+    setQuery('');
+    setSortBy(null);
+    setSortDirection(null);
+  };
+
   useEffect(() => {
     refreshWithFilters();
   }, [representationObject]);
+
+  // useEffect(() => {
+  //   if (queryObject.q) {
+  //     setGroupsFilter(null);
+  //     setSortBy(null);
+  //     setSortDirection(null);
+  //   }
+  // }, [queryObject.q]);
 
   return (
     <TableContainer
       hasPagination
       numberOfRows={queryObject.limit}
       pagingState={{
-        count: count!,
+        count: customersData.total,
         offset: queryObject.offset,
         pageSize: queryObject.offset + rows.length,
         title: t('customer-table-customers', 'Customers'),
         currentPage: pageIndex + 1,
-        pageCount: pageCount,
+        pageCount: Math.ceil(customersData.total / queryObject.limit),
         nextPage: handleNext,
         prevPage: handlePrev,
         hasNext: canNextPage,
         hasPrev: canPreviousPage,
         gotoPage: handlePageInput,
       }}
-      isLoading={isLoading}
+      // isLoading={isLoading}
     >
-      <Table enableSearch handleSearch={setQuery} searchValue={query} {...getTableProps()}>
+      <Table
+        enableSearch
+        handleSearch={setQuery}
+        searchValue={query}
+        filteringOptions={
+          <div className="flex items-center gap-2">
+            <CustomerFilters
+              filters={filters}
+              submitFilters={setFilters}
+              clearFilters={clearFilters}
+              tabs={filterTabs}
+              onTabClick={setTab}
+              activeTab={activeFilterTab}
+              onRemoveTab={removeTab}
+              onSaveTab={saveTab}
+            />
+            <CustomerSortDropdown sortBy={sortBy} sortDirection={sortDirection} onSortChange={handleSortChange} />
+          </div>
+        }
+        {...getTableProps()}
+      >
         <Table.Head>
           {headerGroups?.map(headerGroup => (
             <Table.HeadRow {...headerGroup.getHeaderGroupProps()}>
