@@ -28,10 +28,6 @@ const CustomerTable = () => {
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<string | null>(null);
 
-  // Sort state
-  const [sortBy, setSortBy] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<string | null>(null);
-
   const {
     reset,
     paginate,
