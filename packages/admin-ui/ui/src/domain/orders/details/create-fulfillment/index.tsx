@@ -26,6 +26,7 @@ import Switch from '../../../../components/atoms/switch';
 import { getErrorMessage } from '../../../../utils/error-messages';
 import { useFeatureFlag } from '../../../../providers/feature-flag-provider';
 import useNotification from '../../../../hooks/use-notification';
+import { useAdminGetSession } from 'medusa-react';
 
 type CreateFulfillmentModalProps = {
   handleCancel: () => void;
@@ -43,6 +44,7 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
   onComplete,
 }) => {
   const { t } = useTranslation();
+  const { user } = useAdminGetSession();
   const { isFeatureEnabled } = useFeatureFlag();
   const isLocationFulfillmentEnabled = isFeatureEnabled('inventoryService') && isFeatureEnabled('stockLocationService');
   const [quantities, setQuantities] = useState<Record<string, number>>(
@@ -177,16 +179,21 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
 
       default:
         requestObj = {
-          metadata: preparedMetadata,
+          metadata: {
+            ...preparedMetadata,
+            fulfilled_by: {
+              name: user ? `${user?.first_name} ${user?.last_name}` : 'admin',
+              email: user?.email,
+            },
+          },
           no_notification: noNotis,
+          items: Object.entries(quantities)
+            .filter(([, value]) => !!value)
+            .map(([key, value]) => ({
+              item_id: key,
+              quantity: value,
+            })),
         } as AdminPostOrdersOrderFulfillmentsReq;
-
-        requestObj.items = Object.entries(quantities)
-          .filter(([, value]) => !!value)
-          .map(([key, value]) => ({
-            item_id: key,
-            quantity: value,
-          }));
         break;
     }
 
