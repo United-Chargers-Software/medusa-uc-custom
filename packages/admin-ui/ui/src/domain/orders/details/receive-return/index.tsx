@@ -8,7 +8,13 @@ import {
   Return,
   StockLocationDTO,
 } from '@medusajs/medusa';
-import { useAdminOrder, useAdminReceiveReturn, useMedusa, useAdminUpdatePaymentCollection } from 'medusa-react';
+import {
+  useAdminOrder,
+  useAdminReceiveReturn,
+  useMedusa,
+  useAdminGetSession,
+  useAdminStockLocations,
+} from 'medusa-react';
 import { useEffect, useMemo } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -24,7 +30,6 @@ import { RefundAmountFormType } from '../../components/refund-amount-form';
 import { ReceiveReturnSummary } from '../../components/rma-summaries/receive-return-summary';
 import { getDefaultReceiveReturnValues } from '../utils/get-default-values';
 import useOrdersExpandParam from '../utils/use-admin-expand-paramter';
-import { useAdminStockLocations } from 'medusa-react';
 import Select from '../../../../components/molecules/select/next-select/select';
 import Spinner from '../../../../components/atoms/spinner';
 import { useSendEmailNotification } from './hooks/useSendEmailNotification';
@@ -44,6 +49,7 @@ export type ReceiveReturnFormType = {
 
 export const ReceiveReturnMenu = ({ order, returnRequest, onClose, refetchOrder }: Props) => {
   const { client } = useMedusa();
+  const { user } = useAdminGetSession();
   const { t } = useTranslation();
   const { isFeatureEnabled } = useFeatureFlag();
   const isLocationFulfillmentEnabled = isFeatureEnabled('inventoryService') && isFeatureEnabled('stockLocationService');
@@ -199,7 +205,7 @@ export const ReceiveReturnMenu = ({ order, returnRequest, onClose, refetchOrder 
     reset(getDefaultReceiveReturnValues(order, returnRequest));
   }, [order, returnRequest, reset]);
 
-  const onSubmit = handleSubmit(data => {
+  const onSubmit = handleSubmit(async data => {
     if (data.receive_items.items.filter(it => it.receive).length === 0) {
       setError('receive_items.items', {
         type: 'manual',
@@ -243,7 +249,7 @@ export const ReceiveReturnMenu = ({ order, returnRequest, onClose, refetchOrder 
     }
 
     mutate(toCreate, {
-      onSuccess: res => {
+      onSuccess: async res => {
         notification(
           t('receive-return-successfully-received-return', 'Successfully received return'),
           t('receive-return-received-return-for-order', 'Received return for order #{{display_id}}', {
@@ -251,6 +257,15 @@ export const ReceiveReturnMenu = ({ order, returnRequest, onClose, refetchOrder 
           }),
           'success',
         );
+
+        await client.admin.custom.post(`admin/return/update/${returnRequest.id}`, {
+          metadata: {
+            received_by: {
+              email: user?.email,
+              name: user ? `${user?.first_name} ${user?.last_name}` : 'admin',
+            },
+          },
+        });
 
         refetch();
 

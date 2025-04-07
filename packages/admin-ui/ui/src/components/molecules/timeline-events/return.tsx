@@ -15,6 +15,7 @@ import EventActionables from './event-actionables';
 import EventContainer from './event-container';
 import EventItemContainer from './event-item-container';
 import { useSendEmailNotification } from '../../../domain/orders/details/receive-return/hooks/useSendEmailNotification';
+import Tooltip from '../../atoms/tooltip';
 
 type ReturnRequestedProps = {
   event: ReturnEvent;
@@ -32,7 +33,6 @@ const Return: React.FC<ReturnRequestedProps> = ({ event, refetch, refetchOrder }
   const handleCancel = () => {
     cancelReturn.mutate(undefined, {
       onSuccess: () => {
-        console.log('event', event);
         sendRejectRefundRequestEmail(event.order.id);
         refetch();
       },
@@ -130,7 +130,22 @@ function buildReturn(event: ReturnEvent, onCancel: () => void, onReceive: () => 
         : event.status === 'received'
         ? [
             event.items.map((i, index) => (
-              <EventItemContainer key={index} item={{ ...i, quantity: i.receivedQuantity ?? i.quantity }} />
+              <EventItemContainer
+                key={index}
+                item={{ ...i, quantity: i.receivedQuantity ?? i.quantity }}
+                detail={
+                  event?.raw?.metadata?.received_by?.name && (
+                    <div className="mt-3 flex items-center">
+                      <Tooltip
+                        content={event?.raw?.metadata?.received_by?.email}
+                        hidden={!event?.raw?.metadata?.received_by?.email}
+                      >
+                        <div className="text-grey-50">{`Received by ${event?.raw?.metadata?.received_by?.name}`}</div>
+                      </Tooltip>
+                    </div>
+                  )
+                }
+              />
             )),
           ]
         : null,
