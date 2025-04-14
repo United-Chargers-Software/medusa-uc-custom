@@ -11,7 +11,7 @@ type RefundEventProps = {
 
 const Refund: React.FC<RefundEventProps> = ({ event }) => {
   const detail = event.refund?.metadata?.refunded_by?.name && (
-    <div className="flex flex-col gap-2">
+    <div className="flex items-center">
       <Tooltip
         content={event.refund?.metadata?.refunded_by?.email}
         hidden={!event.refund?.metadata?.refunded_by?.email}

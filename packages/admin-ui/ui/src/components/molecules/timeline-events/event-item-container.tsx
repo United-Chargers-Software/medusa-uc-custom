@@ -1,7 +1,7 @@
 import React from 'react';
 
 type EventItemContainerProps = {
-  item: {
+  item?: {
     thumbnail?: string;
     title: string;
     quantity: number;

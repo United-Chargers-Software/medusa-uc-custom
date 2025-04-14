@@ -92,7 +92,7 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
   useEffect(() => {
     const orderInitialLocation = stock_locations?.find((location: any) => {
       return (
-        (orderToFulfill?.shipping_address?.country_code?.toUpperCase() === 'US' && location.name === 'CA') ||
+        // (orderToFulfill?.shipping_address?.country_code?.toUpperCase() === 'US' && location.name === 'CA') ||
         location.name === orderToFulfill?.shipping_address?.country_code?.toUpperCase()
       );
     });

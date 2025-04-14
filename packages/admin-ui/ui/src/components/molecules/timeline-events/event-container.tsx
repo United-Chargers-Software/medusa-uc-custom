@@ -78,8 +78,9 @@ const EventContainer: React.FC<EventContainerProps> = ({
         <div className="pt-base flex w-5 justify-center">{!isFirst && <div className="min-h-[24px] w-px" />}</div>
         <div className="inter-small-regular mt-2xsmall w-full">
           <div className="flex items-center">
-            <Tooltip content={new Date(time).toLocaleString()}>
-              <div className="inter-small-regular text-grey-50">{moment(time).fromNow()}</div>
+            <Tooltip content={moment(time).fromNow()}>
+              {/* <div className="inter-small-regular text-grey-50">{moment(time).fromNow()}</div> */}
+              <div className="inter-small-regular text-grey-50">{time && new Date(time).toLocaleString()}</div>
             </Tooltip>
             {midNode && (
               <span className="mx-2xsmall ">

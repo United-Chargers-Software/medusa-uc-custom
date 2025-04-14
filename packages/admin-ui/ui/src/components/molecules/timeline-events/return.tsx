@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { useAdminCancelReturn } from 'medusa-react';
+import { useAdminCancelReturn, useAdminGetSession, useMedusa } from 'medusa-react';
 import React, { useState } from 'react';
 import { ReceiveReturnMenu } from '../../../domain/orders/details/receive-return';
 import { ReturnEvent } from '../../../hooks/use-build-timeline';
@@ -24,6 +24,8 @@ type ReturnRequestedProps = {
 };
 
 const Return: React.FC<ReturnRequestedProps> = ({ event, refetch, refetchOrder }) => {
+  const { client } = useMedusa();
+  const { user } = useAdminGetSession();
   const [showCancel, setShowCancel] = useState(false);
   const cancelReturn = useAdminCancelReturn(event.id);
   const { sendRejectRefundRequestEmail } = useSendEmailNotification();
@@ -31,12 +33,32 @@ const Return: React.FC<ReturnRequestedProps> = ({ event, refetch, refetchOrder }
   const { state: showReceiveReturnMenu, close: closeReceiveReturnMenu, open: openReceiveReturnMenu } = useToggleState();
 
   const handleCancel = () => {
-    cancelReturn.mutate(undefined, {
-      onSuccess: () => {
-        sendRejectRefundRequestEmail(event.order.id);
-        refetch();
-      },
-    });
+    const returnId = event.raw.id;
+
+    try {
+      if (returnId) {
+        client.admin.custom.post(`admin/return/update/${returnId}`, {
+          metadata: {
+            canceled_by: {
+              email: user?.email,
+              name: user ? `${user?.first_name} ${user?.last_name}` : 'admin',
+            },
+          },
+        });
+
+        setTimeout(() => {
+          cancelReturn.mutate(undefined, {
+            onSuccess: () => {
+              sendRejectRefundRequestEmail(event.order.id);
+              refetchOrder();
+              refetch();
+            },
+          });
+        }, 5000);
+      }
+    } catch (error) {
+      console.error('Error canceling return:', error);
+    }
   };
 
   const eventContainerArgs = buildReturn(event, handleCancel, openReceiveReturnMenu);
@@ -119,11 +141,28 @@ function buildReturn(event: ReturnEvent, onCancel: () => void, onReceive: () => 
     time: event.time,
     topNode: actions.length > 0 && <EventActionables actions={actions} />,
     noNotification: event.noNotification,
+    detail: event.status === 'canceled' && event.raw?.metadata?.canceled_by?.name && (
+      <div className="mt-3 flex items-center">
+        <Tooltip content={event.raw?.metadata?.canceled_by?.email} hidden={!event.raw?.metadata?.canceled_by?.email}>
+          <div className="text-grey-50">{`Canceled by ${event.raw?.metadata?.canceled_by?.name}`}</div>
+        </Tooltip>
+      </div>
+    ),
     children:
       event.status === 'requested'
         ? [
             event.items.map((i, index) => {
-              return <EventItemContainer key={index} item={i} />;
+              return (
+                <EventItemContainer
+                  key={index}
+                  item={i}
+                  detail={
+                    <div className="mt-3 flex items-center">
+                      <div className="text-grey-50">{`Requested by customer`}</div>
+                    </div>
+                  }
+                />
+              );
             }),
             React.createElement(React.Fragment, { key: 'button' }, button),
           ]
