@@ -178,12 +178,14 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
         break;
 
       default:
+        const userName = user && user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : 'admin';
+        const userEmail = user && user?.email ? user.email : '';
         requestObj = {
           metadata: {
             ...preparedMetadata,
             fulfilled_by: {
-              name: user ? `${user?.first_name} ${user?.last_name}` : 'admin',
-              email: user?.email,
+              name: userName,
+              email: userEmail,
             },
           },
           no_notification: noNotis,
