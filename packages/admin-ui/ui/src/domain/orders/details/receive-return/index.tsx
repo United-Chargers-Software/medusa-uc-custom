@@ -258,7 +258,10 @@ export const ReceiveReturnMenu = ({ order, returnRequest, onClose, refetchOrder 
           'success',
         );
 
-        const userName = user && user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : 'admin';
+        const userName =
+          user && user?.first_name?.trim().length > 0 && user?.last_name?.trim().length > 0
+            ? `${user.first_name.trim()} ${user.last_name.trim()}`
+            : 'admin';
         const userEmail = user && user?.email ? user.email : '';
         await client.admin.custom.post(`admin/return/update/${returnRequest.id}`, {
           metadata: {
