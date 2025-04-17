@@ -39,7 +39,7 @@ const Refund: React.FC<RefundEventProps> = ({ event }) => {
         {event.reason && (
           <span className="text-grey-50">{`${event.reason.slice(0, 1).toUpperCase()}${event.reason.slice(1)}`}</span>
         )}
-        {event.note && <div className="bg-grey-5 px-base py-base rounded-2xl">Note: {event.note}</div>}
+        {event.note && <div className="bg-grey-5 px-base py-base rounded-2xl">Note: {event.note.split('%%')[0]}</div>}
       </div>
     ),
   };

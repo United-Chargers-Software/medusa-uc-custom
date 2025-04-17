@@ -258,11 +258,13 @@ export const ReceiveReturnMenu = ({ order, returnRequest, onClose, refetchOrder 
           'success',
         );
 
+        const userName = user && user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : 'admin';
+        const userEmail = user && user?.email ? user.email : '';
         await client.admin.custom.post(`admin/return/update/${returnRequest.id}`, {
           metadata: {
             received_by: {
-              email: user?.email,
-              name: user ? `${user?.first_name} ${user?.last_name}` : 'admin',
+              email: userEmail,
+              name: userName,
             },
           },
         });

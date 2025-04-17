@@ -60,8 +60,9 @@ const RefundMenu = ({ order, onDismiss, initialAmount, initialReason }: RefundMe
   };
 
   const onSubmit = (data: RefundMenuFormData) => {
-    const refundedBy_name = user && user?.email ? `${user?.first_name} ${user?.last_name}` : 'customer';
-    const refundedBy_email = user?.email || '';
+    const refundedBy_name =
+      user && user?.first_name && user?.last_name ? `${user.first_name} ${user.last_name}` : 'admin';
+    const refundedBy_email = user && user?.email ? user.email : '';
     mutate(
       {
         amount: data.amount,
