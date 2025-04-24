@@ -7,6 +7,7 @@ import openUrlNewWindow from '../../../utils/open-link-new-window';
 import DatePicker from '../../../components/atoms/date-picker/date-picker';
 import ExportCustomerQuickFilters from './export-customer-quick-filters';
 import Checkbox from '../../../components/atoms/checkbox';
+import { PartnersGroupEnum, PartnersGroupRadio } from './partnersGroupRadio';
 
 type ExportModalProps = {
   handleClose: () => void;
@@ -24,6 +25,7 @@ const ExportCustomersModal: React.FC<ExportModalProps> = ({ handleClose, title, 
   const [endDate, setEndDate] = useState(now);
   const [urlParams, setUrlParams] = useState('');
   const [onlyResellers, setOnlyResellers] = useState(false);
+  const [partnersGroup, setPartnersGroup] = useState<PartnersGroupEnum>(PartnersGroupEnum.ALL);
 
   // Date select
 
@@ -48,12 +50,20 @@ const ExportCustomersModal: React.FC<ExportModalProps> = ({ handleClose, title, 
 
     params += '&end_date=' + moment(endDate).format('YYYY-MM-DD') + 'T23:59:59';
 
+    if (onlyResellers) {
+      params += '&onlyResellers=true';
+
+      if (partnersGroup) {
+        params += '&resellersGroup=' + partnersGroup;
+      }
+    }
+
     return params;
   };
 
   const getReport = async () => {
     try {
-      const url = `${MEDUSA_BACKEND_URL_NOSLASH}/admin/resellers/export${urlParams}&onlyResellers=${onlyResellers}`;
+      const url = `${MEDUSA_BACKEND_URL_NOSLASH}/admin/resellers/export${urlParams}`;
       openUrlNewWindow(url);
     } catch (error) {
       console.log(error);
@@ -70,7 +80,7 @@ const ExportCustomersModal: React.FC<ExportModalProps> = ({ handleClose, title, 
 
   useEffect(() => {
     setUrlParams(getUrlParams());
-  }, [startDate, endDate]);
+  }, [startDate, endDate, onlyResellers, partnersGroup]);
 
   return (
     <Modal handleClose={handleClose}>
@@ -93,6 +103,8 @@ const ExportCustomersModal: React.FC<ExportModalProps> = ({ handleClose, title, 
           />
           <div className="mb-4 block h-[1px] bg-gray-200" />
           <Checkbox label="Only partners" onChange={handleCheckboxChange} checked={onlyResellers} />
+
+          {onlyResellers && <PartnersGroupRadio setPartnersGroup={setPartnersGroup} />}
         </Modal.Content>
         <Modal.Footer>
           <div className="flex w-full justify-end gap-4">
