@@ -608,6 +608,65 @@ const OrderDetails = () => {
                     </div>
                   </div>
                 </BodyCard>
+
+                {!!order?.metadata?._techOms_fulfillment &&
+                  (order?.metadata?._techOms_fulfillment as any[])?.map(fulfillment => (
+                    <BodyCard
+                      className={'h-auto min-h-0 w-full'}
+                      title={t('details-techOms-sync', 'Fulfillment techOMS')!}
+                    >
+                      <div className="inter-small-regular">
+                        <div className="flex flex-col gap-1">
+                          {!!fulfillment?.status && (
+                            <div>
+                              <span className="text-grey-50">Status:</span> {fulfillment.status}
+                            </div>
+                          )}
+
+                          {!!fulfillment?.created_at && (
+                            <div>
+                              <span className="text-grey-50">Created at:</span> {fulfillment.created_at}
+                            </div>
+                          )}
+
+                          {!!fulfillment?.salesOrderId && (
+                            <div>
+                              <span className="text-grey-50">Sales Order:</span>{' '}
+                              <a
+                                href={'https://techoms.io/#/SalesOrders/' + fulfillment.salesOrderId}
+                                className="text-blue-60"
+                                target="_blank"
+                                rel="nofollow"
+                              >
+                                {fulfillment.salesOrder ? fulfillment.salesOrder : 'View'}
+                              </a>
+                            </div>
+                          )}
+
+                          {!!(order.metadata?._techOms_fulfillment as any)?.tracking_number && (
+                            <div>
+                              <span className="text-grey-50">Tracking number:</span>{' '}
+                              <a
+                                href={`https://www.ups.com/track?tracknum=${fulfillment.tracking_number}&loc=en_US&requester=ST/trackdetails`}
+                                className="text-blue-60"
+                                target="_blank"
+                                rel="nofollow"
+                              >
+                                {fulfillment?.tracking_number ? fulfillment.tracking_number : 'View'}
+                              </a>
+                            </div>
+                          )}
+
+                          {!!fulfillment?.shipping_price && (
+                            <div>
+                              <span className="text-grey-50">Shipping price:</span> {fulfillment.shipping_price}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </BodyCard>
+                  ))}
+
                 <BodyCard
                   className={'h-auto min-h-0 w-full'}
                   title={t('details-customer', 'Customer')}
