@@ -643,7 +643,7 @@ const OrderDetails = () => {
                             </div>
                           )}
 
-                          {!!(order.metadata?._techOms_fulfillment as any)?.tracking_number && (
+                          {!!fulfillment?.tracking_number && (
                             <div>
                               <span className="text-grey-50">Tracking number:</span>{' '}
                               <a
