@@ -3,10 +3,12 @@ import Medusa from '../../../services/api';
 import {
   useAdminCancelOrder,
   useAdminCapturePayment,
+  useAdminGetSession,
   useAdminOrder,
   useAdminRegion,
   useAdminReservations,
   useAdminUpdateOrder,
+  useMedusa,
 } from 'medusa-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import OrderEditProvider, { OrderEditContext } from '../edit/context';
@@ -71,6 +73,11 @@ import { useAccess } from '../../../providers/access-provider';
 import StatusDot from '../../../components/fundamentals/status-indicator';
 import useChangeFulfillmentStatus from './hooks/useChangeFulfillmentStatus';
 import { FulfilmentStatuses } from '../../../types/utils';
+import StatusIndicator from '../../../components/fundamentals/status-indicator';
+import { getProductStatusVariant } from '../../../utils/product-status-variant';
+import MoreHorizontalIcon from '../../../components/fundamentals/icons/more-horizontal-icon';
+import clsx from 'clsx';
+import StatusSelector from '../../../components/molecules/status-selector';
 
 type OrderDetailFulfillment = {
   title: string;
@@ -150,6 +157,8 @@ const OrderDetails = () => {
   const { state: showTransferOrderModal, toggle: toggleTransferOrderModal } = useToggleState();
 
   const [showFulfillment, setShowFulfillment] = useState(false);
+  const { client } = useMedusa();
+  const { user } = useAdminGetSession();
   const [showRefund, setShowRefund] = useState(false);
   const [fullfilmentToShip, setFullfilmentToShip] = useState(null);
 
@@ -219,6 +228,12 @@ const OrderDetails = () => {
 
   const { getWidgets } = useWidgets();
 
+  const userName =
+    user && user?.first_name?.trim().length > 0 && user?.last_name?.trim().length > 0
+      ? `${user.first_name.trim()} ${user.last_name.trim()}`
+      : 'admin';
+  const userEmail = user && user?.email ? user.email : '';
+
   const fulfilmentStatusActionables: ActionType[] = [
     {
       label: 'Fulfilled',
@@ -283,10 +298,10 @@ const OrderDetails = () => {
     const shouldDelete = await dialog({
       heading: t('details-cancel-order-heading', 'Cancel order'),
       text: t('details-are-you-sure-you-want-to-cancel-the-order', 'Are you sure you want to cancel the order?'),
-      extraConfirmation: true,
-      entityName: t('order-details-display-id', 'order #{{display_id}}', {
-        display_id: order.display_id,
-      }),
+      extraConfirmation: false,
+      // entityName: t('order-details-display-id', 'order #{{display_id}}', {
+      //   display_id: order.display_id,
+      // }),
     });
 
     if (!shouldDelete) {
@@ -294,12 +309,22 @@ const OrderDetails = () => {
     }
 
     return cancelOrder.mutate(undefined, {
-      onSuccess: () =>
+      onSuccess: () => {
+        client.admin.custom.post(`admin/cancel-order-custom/${order?.id}`, {
+          metadata: {
+            order_canceled_by: {
+              email: userEmail,
+              name: userName,
+            },
+          },
+        });
+
         notification(
           t('details-success', 'Success'),
           t('details-successfully-canceled-order', 'Successfully canceled order'),
           'success',
-        ),
+        );
+      },
       onError: err => notification(t('details-error', 'Error'), getErrorMessage(err), 'error'),
     });
   };
@@ -459,14 +484,14 @@ const OrderDetails = () => {
                   subtitle={moment(order.created_at).format('D MMMM YYYY hh:mm a')}
                   status={<OrderStatusComponent status={order.status} />}
                   forceDropdown={true}
-                  /*actionables={[
+                  actionables={[
                     {
-                      label: t("details-cancel-order", "Cancel Order"),
-                      icon: <CancelIcon size={"20"} />,
-                      variant: "danger",
+                      label: t('details-cancel-order', 'Cancel Order'),
+                      icon: <CancelIcon size={'20'} />,
+                      variant: 'danger',
                       onClick: () => handleDeleteOrder(),
                     },
-                  ]}*/
+                  ]}
                 >
                   <div className="mt-6 flex flex-wrap gap-4 divide-x">
                     <div className="flex flex-col">
@@ -610,8 +635,9 @@ const OrderDetails = () => {
                 </BodyCard>
 
                 {!!order?.metadata?._techOms_fulfillment &&
-                  (order?.metadata?._techOms_fulfillment as any[])?.map(fulfillment => (
+                  (order?.metadata?._techOms_fulfillment as any[])?.map((fulfillment, idx) => (
                     <BodyCard
+                      key={fulfillment?.salesOrder || idx}
                       className={'h-auto min-h-0 w-full'}
                       title={t('details-techOms-sync', 'Fulfillment techOMS')!}
                     >
