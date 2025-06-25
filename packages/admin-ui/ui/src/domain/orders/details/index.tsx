@@ -69,8 +69,8 @@ import DownloadIcon from '../../../components/fundamentals/icons/download-icon';
 import openUrlNewWindow from '../../../utils/open-link-new-window';
 import { useAccess } from '../../../providers/access-provider';
 import StatusDot from '../../../components/fundamentals/status-indicator';
-import useChangeFulfillmentStatus from './hooks/useChangeFulfillmentStatus';
-import { FulfilmentStatuses } from '../../../types/utils';
+import useChangeStatus from './hooks/useChangeStatus';
+import { FulfilmentStatuses, PaymentStatuses } from '../../../types/utils';
 
 type OrderDetailFulfillment = {
   title: string;
@@ -134,7 +134,7 @@ const OrderDetails = () => {
   const { id } = useParams();
   const { t } = useTranslation();
   const [userTaxId, setUserTaxId] = useState<string | null>(null);
-  const { changeFulfillmentStatus } = useChangeFulfillmentStatus(id!);
+  const { changeFulfillmentStatus, changePaymentStatus } = useChangeStatus(id!);
 
   const dialog = useImperativeDialog();
 
@@ -270,9 +270,51 @@ const OrderDetails = () => {
     },
   ];
 
+  const paymentStatusActionables: ActionType[] = [
+    {
+      label: 'Awaiting',
+      icon: <StatusDot variant="danger" />,
+      variant: 'normal',
+      onClick: () => handleChangePaymentStatus(PaymentStatuses.AWAITING),
+    },
+    {
+      label: 'Canceled',
+      icon: <StatusDot variant="danger" />,
+      variant: 'normal',
+      onClick: () => handleChangePaymentStatus(PaymentStatuses.CANCELED),
+    },
+    {
+      label: 'Paid',
+      icon: <StatusDot variant="success" />,
+      variant: 'normal',
+      onClick: () => handleChangePaymentStatus(PaymentStatuses.CAPTURED),
+    },
+    {
+      label: 'Partially refunded',
+      icon: <StatusDot variant="primary" />,
+      variant: 'normal',
+      onClick: () => handleChangePaymentStatus(PaymentStatuses.PARTIALLY_REFUNDED),
+    },
+    {
+      label: 'Refunded',
+      icon: <StatusDot variant="danger" />,
+      variant: 'normal',
+      onClick: () => handleChangePaymentStatus(PaymentStatuses.REFUNDED),
+    },
+  ];
+
   const handleChangeFulfillmentStatus = async (status: FulfilmentStatuses) => {
     try {
       await changeFulfillmentStatus(status);
+      await refetch();
+    } catch (error) {
+      console.log('error', error);
+    }
+  };
+
+  const handleChangePaymentStatus = async (status: PaymentStatus) => {
+    try {
+      await changePaymentStatus(status);
       await refetch();
     } catch (error) {
       console.log('error', error);
@@ -384,8 +426,8 @@ const OrderDetails = () => {
       : item.quantity > (item.fulfilled_quantity ?? 0),
   );
 
-  const invoiceUrl = `${MEDUSA_BACKEND_URL_NOSLASH}/admin/invoice/${order?.id}/invoice-${order.display_id}.pdf`;
-  const packingUrl = `${MEDUSA_BACKEND_URL_NOSLASH}/admin/packing/${order?.id}/packing-slip-${order.display_id}.pdf`;
+  const invoiceUrl = `${MEDUSA_BACKEND_URL_NOSLASH}/admin/invoice/${order?.id}/invoice-${order?.display_id}.pdf`;
+  const packingUrl = `${MEDUSA_BACKEND_URL_NOSLASH}/admin/packing/${order?.id}/packing-slip-${order?.display_id}.pdf`;
 
   return (
     <div>
@@ -505,11 +547,14 @@ const OrderDetails = () => {
                   title={t('details-payment', 'Payment')}
                   status={<PaymentStatusComponent status={order.payment_status} />}
                   customActionable={
-                    <PaymentActionables
-                      order={order}
-                      capturePayment={capturePayment}
-                      showRefundMenu={() => setShowRefund(true)}
-                    />
+                    <div className="flex items-center gap-2">
+                      <PaymentActionables
+                        order={order}
+                        capturePayment={capturePayment}
+                        showRefundMenu={() => setShowRefund(true)}
+                      />
+                      <Actionables actions={paymentStatusActionables} />
+                    </div>
                   }
                 >
                   <div className="mt-6">
@@ -610,8 +655,9 @@ const OrderDetails = () => {
                 </BodyCard>
 
                 {!!order?.metadata?._techOms_fulfillment &&
-                  (order?.metadata?._techOms_fulfillment as any[])?.map(fulfillment => (
+                  (order?.metadata?._techOms_fulfillment as any[])?.map((fulfillment, idx) => (
                     <BodyCard
+                      key={fulfillment?.salesOrderId || idx}
                       className={'h-auto min-h-0 w-full'}
                       title={t('details-techOms-sync', 'Fulfillment techOMS')!}
                     >

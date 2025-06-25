@@ -12,3 +12,11 @@ export enum FulfilmentStatuses {
   RETURNED = 'returned',
   CANCELED = 'canceled',
 }
+
+export enum PaymentStatuses {
+  AWAITING = 'awaiting',
+  CANCELED = 'canceled',
+  CAPTURED = 'captured',
+  PARTIALLY_REFUNDED = 'partially_refunded',
+  REFUNDED = 'refunded',
+}
