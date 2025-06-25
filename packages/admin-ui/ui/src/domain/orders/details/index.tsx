@@ -322,7 +322,7 @@ const OrderDetails = () => {
     }
   };
 
-  const handleChangePaymentStatus = async (status: PaymentStatus) => {
+  const handleChangePaymentStatus = async (status: PaymentStatuses) => {
     try {
       await changePaymentStatus(status);
       await refetch();
