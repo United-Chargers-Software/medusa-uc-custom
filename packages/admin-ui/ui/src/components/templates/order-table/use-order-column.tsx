@@ -172,6 +172,13 @@ const useOrderTableColums = () => {
         },
       },
       {
+        Header: 'Club',
+        accessor: 'cart.context.club_membership',
+        Cell: ({ cell: { value } }) => {
+          return <>{value ? '+' : <span className="text-gray-400">-</span>}</>;
+        },
+      },
+      {
         Header: () => <div className="text-right">{t('order-table-total', 'Total')}</div>,
         accessor: 'total',
         Cell: ({ row, cell: { value } }) => (

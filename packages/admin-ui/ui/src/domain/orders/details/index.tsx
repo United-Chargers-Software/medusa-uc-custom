@@ -557,6 +557,14 @@ const OrderDetails = () => {
                         </div>
                       </div>
                     )}
+                    {!!order?.cart?.context?.club_membership && (
+                      <div className="flex flex-col pl-6">
+                        <div className="inter-smaller-regular text-grey-50 mb-1">Club Membership ID</div>
+                        <div className="text-green-600">
+                          <>{order.cart.context.club_membership}</>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </BodyCard>
 
@@ -877,7 +885,7 @@ const OrderDetails = () => {
                 orderToFulfill={order as any}
                 handleCancel={() => setShowFulfillment(false)}
                 orderId={order.id}
-                onComplete={inventoryEnabled ? refetchReservations : () => {}}
+                onComplete={inventoryEnabled ? refetchReservations : () => { }}
               />
             )}
             {showRefund && <CreateRefundModal order={order} onDismiss={() => setShowRefund(false)} />}
