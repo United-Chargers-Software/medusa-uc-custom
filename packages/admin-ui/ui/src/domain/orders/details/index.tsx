@@ -132,6 +132,15 @@ const gatherAllFulfillments = order => {
   return all;
 };
 
+interface IMembershipView {
+  membership: any;
+}
+
+const MembershipView = ({ membership }: IMembershipView) => {
+  const [membershipId, membershipNumber] = String(membership).split('-');
+  return <>{membershipNumber ?? membershipId ?? '-'}</>
+}
+
 const OrderDetails = () => {
   const { id } = useParams();
   const { t } = useTranslation();
@@ -561,7 +570,7 @@ const OrderDetails = () => {
                       <div className="flex flex-col pl-6">
                         <div className="inter-smaller-regular text-grey-50 mb-1">Club Membership ID</div>
                         <div className="text-green-600">
-                          <>{order.cart.context.club_membership}</>
+                          <MembershipView membership={order.cart.context.club_membership} />
                         </div>
                       </div>
                     )}
