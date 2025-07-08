@@ -1,5 +1,5 @@
 import { AdminGetVariantsVariantInventoryRes, Order, VariantInventory } from '@medusajs/medusa';
-import React, { useContext, useMemo } from 'react';
+import React, { useContext, useEffect, useMemo } from 'react';
 import { DisplayTotal, PaymentDetails } from '../templates';
 import { useTranslation } from 'react-i18next';
 
@@ -18,6 +18,7 @@ import StatusIndicator from '../../../../components/fundamentals/status-indicato
 import useToggleState from '../../../../hooks/use-toggle-state';
 import { useFeatureFlag } from '../../../../providers/feature-flag-provider';
 import { taxesMap } from '../../../../constants/taxes-map';
+import { CLUB_PRODUCTS_COLLECTION_TITLE } from '../../../../constants/club-products';
 
 type SummaryCardProps = {
   order: Order;
@@ -147,19 +148,41 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ order, reservations }) => {
     return actionables;
   }, [showModal, isFeatureEnabled, showReservationModal, allItemsReserved]);
 
-  const isClubProduct = async () => {
-    const collections = await medusaClient.admin.collections.list();
-    const clubCollection = collections.collections.find(c => c.title === 'Grizzl-E Club');
+  const [clubProductsSubtotal, setClubProductsSubtotal] = React.useState(0);
 
-    if (!clubCollection) return false;
+  useEffect(() => {
+    const fetchClubProductsSubtotal = async () => {
+      if (!order.items || !order.items.length) {
+        setClubProductsSubtotal(0);
+        return;
+      }
 
-    return order.items?.some(item => item.variant?.product?.collection_id === clubCollection.id);
-  };
+      const collections = await medusaClient.admin.collections.list();
+      const clubCollection = collections.collections.find(c => c.title === CLUB_PRODUCTS_COLLECTION_TITLE);
+
+      if (!clubCollection) {
+        setClubProductsSubtotal(0);
+        return;
+      }
+
+      const subtotal = order.items.reduce((total, item) => {
+        if (item.variant?.product?.collection_id === clubCollection.id) {
+          return total + (item.subtotal || 0);
+        }
+
+        return total;
+      }, 0);
+
+      setClubProductsSubtotal(subtotal);
+    };
+
+    fetchClubProductsSubtotal();
+  }, [order.items]);
 
   const isAllocatable = !['canceled', 'archived'].includes(order.status);
 
   const taxes =
-    order.shipping_address.province in taxesMap && !isClubProduct
+    order.shipping_address.province in taxesMap
       ? taxesMap[order.shipping_address.province as keyof typeof taxesMap]
       : [];
 
@@ -247,7 +270,10 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ order, reservations }) => {
           <DisplayTotal
             key={index}
             currency={order.currency_code}
-            totalAmount={(order.subtotal + order.shipping_total - (order.discount_total ?? 0)) * (value / 100)}
+            totalAmount={
+              (order.subtotal - clubProductsSubtotal + order.shipping_total - (order.discount_total ?? 0)) *
+              (value / 100)
+            }
             totalTitle={`${taxName} (${value}%)`}
           />
         ))}
