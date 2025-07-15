@@ -138,8 +138,8 @@ interface IMembershipView {
 
 const MembershipView = ({ membership }: IMembershipView) => {
   const [membershipId, membershipNumber] = String(membership).split('-');
-  return <>{membershipNumber ?? membershipId ?? '-'}</>
-}
+  return <>{membershipNumber ?? membershipId ?? '-'}</>;
+};
 
 const OrderDetails = () => {
   const { id } = useParams();
@@ -530,14 +530,14 @@ const OrderDetails = () => {
                   subtitle={moment(order.created_at).format('D MMMM YYYY hh:mm a')}
                   status={<OrderStatusComponent status={order.status} />}
                   forceDropdown={true}
-                  actionables={[
-                    {
-                      label: t('details-cancel-order', 'Cancel Order'),
-                      icon: <CancelIcon size={'20'} />,
-                      variant: 'danger',
-                      onClick: () => handleDeleteOrder(),
-                    },
-                  ]}
+                  // actionables={[
+                  //   {
+                  //     label: t('details-cancel-order', 'Cancel Order'),
+                  //     icon: <CancelIcon size={'20'} />,
+                  //     variant: 'danger',
+                  //     onClick: () => handleDeleteOrder(),
+                  //   },
+                  // ]}
                 >
                   <div className="mt-6 flex flex-wrap gap-4 divide-x">
                     <div className="flex flex-col">
@@ -894,7 +894,7 @@ const OrderDetails = () => {
                 orderToFulfill={order as any}
                 handleCancel={() => setShowFulfillment(false)}
                 orderId={order.id}
-                onComplete={inventoryEnabled ? refetchReservations : () => { }}
+                onComplete={inventoryEnabled ? refetchReservations : () => {}}
               />
             )}
             {showRefund && <CreateRefundModal order={order} onDismiss={() => setShowRefund(false)} />}
