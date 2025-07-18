@@ -469,7 +469,7 @@ const OrderDetails = () => {
             {!!invoiceUrl && (
               <div>
                 <Button
-                  key="export"
+                  key="invoice"
                   variant="secondary"
                   size="small"
                   onClick={() => {
@@ -485,7 +485,7 @@ const OrderDetails = () => {
             {!!packingUrl && (
               <div>
                 <Button
-                  key="export"
+                  key="packing-slip"
                   variant="secondary"
                   size="small"
                   onClick={() => {
