@@ -9,6 +9,11 @@ type OrderDateFilter = null | {
   lt?: string;
 };
 
+type OdooFilterState = {
+  salesOrder: boolean;
+  deliveryOrder: boolean;
+};
+
 type OrderFilterAction =
   | { type: 'setQuery'; payload: string | null }
   | { type: 'setFilters'; payload: OrderFilterState }
@@ -18,7 +23,11 @@ type OrderFilterAction =
   | { type: 'setDate'; payload: OrderDateFilter }
   | { type: 'setStatus'; payload: null | string[] | string }
   | { type: 'setFulfillment'; payload: null | string[] | string }
-  | { type: 'setPayment'; payload: null | string[] | string };
+  | { type: 'setPayment'; payload: null | string[] | string }
+  | { type: 'setClub'; payload: null | boolean }
+  | { type: 'setGa'; payload: null | boolean }
+  | { type: 'setRef'; payload: null | boolean }
+  | { type: 'setOdoo'; payload: null | OdooFilterState };
 
 interface OrderFilterState {
   query?: string | null;
@@ -46,6 +55,22 @@ interface OrderFilterState {
     open: boolean;
     filter: OrderDateFilter;
   };
+  club: {
+    open: boolean;
+    filter: null | boolean;
+  };
+  ga: {
+    open: boolean;
+    filter: null | boolean;
+  };
+  ref: {
+    open: boolean;
+    filter: null | boolean;
+  };
+  odoo: {
+    open: boolean;
+    filter: null | OdooFilterState;
+  };
   limit: number;
   offset: number;
   additionalFilters: OrderDefaultFilters | null;
@@ -60,6 +85,10 @@ const allowedFilters = [
   'q',
   'offset',
   'limit',
+  'club',
+  'ga',
+  'ref',
+  'odoo',
 ];
 
 const DefaultTabs = {
@@ -78,7 +107,7 @@ const formatDateFilter = (filter: OrderDateFilter) => {
     return filter;
   }
 
-  const dateFormatted = Object.entries(filter).reduce((acc, [key, value]) => {
+  const dateFormatted = Object.entries(filter).reduce((acc: { [key: string]: string }, [key, value]) => {
     if (value.includes('|')) {
       acc[key] = relativeDateFormatToTimestamp(value);
     } else {
@@ -101,6 +130,10 @@ const reducer = (state: OrderFilterState, action: OrderFilterAction): OrderFilte
         payment: action.payload.payment,
         status: action.payload.status,
         date: action.payload.date,
+        club: action.payload.club,
+        ga: action.payload.ga,
+        ref: action.payload.ref,
+        odoo: action.payload.odoo,
         query: action?.payload?.query,
       };
     }
@@ -248,6 +281,22 @@ export const useOrderFilters = (existing?: string, defaultFilters: OrderDefaultF
           open: false,
           filter: null,
         },
+        club: {
+          open: false,
+          filter: null,
+        },
+        ga: {
+          open: false,
+          filter: null,
+        },
+        ref: {
+          open: false,
+          filter: null,
+        },
+        odoo: {
+          open: false,
+          filter: null,
+        },
         query: null,
       },
     });
@@ -263,6 +312,9 @@ export const useOrderFilters = (existing?: string, defaultFilters: OrderDefaultF
 
   const getQueryObject = () => {
     const toQuery: any = { ...state.additionalFilters };
+
+    const nullCheckFilters = ['club', 'ga', 'ref', 'odoo'];
+
     for (const [key, value] of Object.entries(state)) {
       if (key === 'query') {
         if (value && typeof value === 'string') {
@@ -270,9 +322,13 @@ export const useOrderFilters = (existing?: string, defaultFilters: OrderDefaultF
         }
       } else if (key === 'offset' || key === 'limit') {
         toQuery[key] = value;
-      } else if (value.open) {
+      } else if (value.open && stateFilterMap[key]) {
         if (key === 'date') {
           toQuery[stateFilterMap[key]] = formatDateFilter(value.filter as OrderDateFilter);
+        } else if (nullCheckFilters.includes(key)) {
+          if (value.filter !== null) {
+            toQuery[stateFilterMap[key]] = value.filter;
+          }
         } else {
           toQuery[stateFilterMap[key]] = value.filter;
         }
@@ -372,11 +428,11 @@ export const useOrderFilters = (existing?: string, defaultFilters: OrderDefaultF
   const setTab = (tabName: string) => {
     let tabToUse: object | null = null;
     if (tabName in DefaultTabs) {
-      tabToUse = DefaultTabs[tabName];
+      tabToUse = (DefaultTabs as any)[tabName];
     } else {
       const tabFound = tabs.find(t => t.value === tabName);
       if (tabFound) {
-        tabToUse = qs.parse(tabFound.representationString);
+        tabToUse = qs.parse(tabFound.representationString as string);
       }
     }
 
@@ -399,13 +455,32 @@ export const useOrderFilters = (existing?: string, defaultFilters: OrderDefaultF
           open: false,
           filter: null,
         },
+        club: {
+          open: false,
+          filter: null,
+        },
+        ga: {
+          open: false,
+          filter: null,
+        },
+        ref: {
+          open: false,
+          filter: null,
+        },
+        odoo: {
+          open: false,
+          filter: null,
+        },
       };
 
       for (const [filter, val] of Object.entries(tabToUse)) {
-        toSubmit[filterStateMap[filter]] = {
-          open: true,
-          filter: val,
-        };
+        const stateKey = filterStateMap[filter] as keyof OrderFilterState;
+        if (stateKey && stateKey in toSubmit) {
+          (toSubmit as any)[stateKey] = {
+            open: true,
+            filter: val,
+          };
+        }
       }
       dispatch({ type: 'setFilters', payload: toSubmit });
     }
@@ -418,7 +493,7 @@ export const useOrderFilters = (existing?: string, defaultFilters: OrderDefaultF
 
     const storedString = localStorage.getItem('orders::filters');
 
-    let existing: null | object = null;
+    let existing: { [key: string]: string } | null = null;
 
     if (storedString) {
       existing = JSON.parse(storedString);
@@ -428,7 +503,7 @@ export const useOrderFilters = (existing?: string, defaultFilters: OrderDefaultF
       existing[tabName] = repString;
       localStorage.setItem('orders::filters', JSON.stringify(existing));
     } else {
-      const newFilters = {};
+      const newFilters: { [key: string]: string } = {};
       newFilters[tabName] = repString;
       localStorage.setItem('orders::filters', JSON.stringify(newFilters));
     }
@@ -451,7 +526,7 @@ export const useOrderFilters = (existing?: string, defaultFilters: OrderDefaultF
   const removeTab = (tabValue: string) => {
     const storedString = localStorage.getItem('orders::filters');
 
-    let existing: null | object = null;
+    let existing: { [key: string]: string } | null = null;
 
     if (storedString) {
       existing = JSON.parse(storedString);
@@ -495,22 +570,30 @@ export const useOrderFilters = (existing?: string, defaultFilters: OrderDefaultF
   };
 };
 
-const filterStateMap = {
+const filterStateMap: { [key: string]: string } = {
   status: 'status',
   fulfillment_status: 'fulfillment',
   payment_status: 'payment',
   created_at: 'date',
   region_id: 'region',
   sales_channel_id: 'salesChannel',
+  club: 'club',
+  ga: 'ga',
+  ref: 'ref',
+  odoo: 'odoo',
 };
 
-const stateFilterMap = {
+const stateFilterMap: { [key: string]: string } = {
   region: 'region_id',
   salesChannel: 'sales_channel_id',
   status: 'status',
   fulfillment: 'fulfillment_status',
   payment: 'payment_status',
   date: 'created_at',
+  club: 'club',
+  ga: 'ga',
+  ref: 'ref',
+  odoo: 'odoo',
 };
 
 const parseQueryString = (queryString?: string, additionals: OrderDefaultFilters | null = null): OrderFilterState => {
@@ -536,6 +619,22 @@ const parseQueryString = (queryString?: string, additionals: OrderDefaultFilters
       filter: null,
     },
     date: {
+      open: false,
+      filter: null,
+    },
+    club: {
+      open: false,
+      filter: null,
+    },
+    ga: {
+      open: false,
+      filter: null,
+    },
+    ref: {
+      open: false,
+      filter: null,
+    },
+    odoo: {
       open: false,
       filter: null,
     },
@@ -568,55 +667,99 @@ const parseQueryString = (queryString?: string, additionals: OrderDefaultFilters
             break;
           }
           case 'status': {
-            if (typeof value === 'string' || Array.isArray(value)) {
+            if (typeof value === 'string' || (Array.isArray(value) && value.every(v => typeof v === 'string'))) {
               defaultVal.status = {
                 open: true,
-                filter: value,
+                filter: value as string | string[],
               };
             }
             break;
           }
           case 'fulfillment_status': {
-            if (typeof value === 'string' || Array.isArray(value)) {
+            if (typeof value === 'string' || (Array.isArray(value) && value.every(v => typeof v === 'string'))) {
               defaultVal.fulfillment = {
                 open: true,
-                filter: value,
+                filter: value as string | string[],
               };
             }
             break;
           }
           case 'region_id': {
-            if (typeof value === 'string' || Array.isArray(value)) {
+            if (typeof value === 'string' || (Array.isArray(value) && value.every(v => typeof v === 'string'))) {
               defaultVal.region = {
                 open: true,
-                filter: value,
+                filter: value as string | string[],
               };
             }
             break;
           }
           case 'sales_channel_id': {
-            if (typeof value === 'string' || Array.isArray(value)) {
+            if (typeof value === 'string' || (Array.isArray(value) && value.every(v => typeof v === 'string'))) {
               defaultVal.salesChannel = {
                 open: true,
-                filter: value,
+                filter: value as string | string[],
               };
             }
             break;
           }
           case 'payment_status': {
-            if (typeof value === 'string' || Array.isArray(value)) {
+            if (typeof value === 'string' || (Array.isArray(value) && value.every(v => typeof v === 'string'))) {
               defaultVal.payment = {
                 open: true,
-                filter: value,
+                filter: value as string | string[],
               };
             }
             break;
           }
           case 'created_at': {
-            defaultVal.date = {
-              open: true,
-              filter: value,
-            };
+            if (value && (typeof value === 'string' || typeof value === 'object')) {
+              defaultVal.date = {
+                open: true,
+                filter: value as OrderDateFilter,
+              };
+            }
+            break;
+          }
+          case 'club': {
+            if (typeof value === 'string') {
+              defaultVal.club = {
+                open: true,
+                filter: value === 'true',
+              };
+            }
+            break;
+          }
+          case 'ga': {
+            if (typeof value === 'string') {
+              defaultVal.ga = {
+                open: true,
+                filter: value === 'true',
+              };
+            }
+            break;
+          }
+          case 'ref': {
+            if (typeof value === 'string') {
+              defaultVal.ref = {
+                open: true,
+                filter: value === 'true',
+              };
+            }
+            break;
+          }
+          case 'odoo': {
+            if (typeof value === 'object' && value !== null) {
+              const odooValue = value as any;
+              if ('salesOrder' in odooValue || 'deliveryOrder' in odooValue) {
+                defaultVal.odoo = {
+                  open: true,
+                  filter: {
+                    salesOrder: odooValue.salesOrder === 'true',
+                    deliveryOrder: odooValue.deliveryOrder === 'true',
+                  },
+                };
+              }
+            }
             break;
           }
           default: {
