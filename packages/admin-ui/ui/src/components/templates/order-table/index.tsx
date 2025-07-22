@@ -1,6 +1,5 @@
 import clsx from 'clsx';
 import { isEmpty } from 'lodash';
-import { useAdminOrders } from 'medusa-react';
 import qs from 'qs';
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -10,8 +9,10 @@ import { useFeatureFlag } from '../../../providers/feature-flag-provider';
 import Table from '../../molecules/table';
 import TableContainer from '../../organisms/table-container';
 import OrderFilters from '../order-filter-dropdown';
+import OrderSortDropdown from '../order-sort-dropdown';
 import useOrderTableColums from './use-order-column';
 import { useOrderFilters } from './use-order-filters';
+import useOrdersByGroup from '../../../hooks/use-orders-by-group';
 
 const DEFAULT_PAGE_SIZE = 15;
 
@@ -29,6 +30,9 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
 
   const { isFeatureEnabled } = useFeatureFlag();
   const { trackNumberOfOrders } = useAnalytics();
+
+  const [sortBy, setSortBy] = useState<string | null>('created_at');
+  const [sortDirection, setSortDirection] = useState<string | null>('desc');
 
   let hiddenColumns = ['sales_channel'];
   if (isFeatureEnabled('sales_channels')) {
@@ -54,30 +58,61 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
   } = useOrderFilters(location.search, defaultQueryProps);
   const filtersOnLoad = queryObject;
 
-  const offs = parseInt(filtersOnLoad?.offset) || 0;
-  const lim = parseInt(filtersOnLoad.limit) || DEFAULT_PAGE_SIZE;
+  const offs = parseInt(queryObject?.offset) || 0;
+  const lim = parseInt(queryObject.limit) || DEFAULT_PAGE_SIZE;
 
-  const [query, setQuery] = useState(filtersOnLoad?.query);
+  const [query, setQuery] = useState(filtersOnLoad?.query || filtersOnLoad?.q);
   const [numPages, setNumPages] = useState(0);
 
-  const { orders, isLoading, count, refetch } = useAdminOrders(queryObject, {
-    keepPreviousData: true,
-    onSuccess: ({ count }) => {
-      trackNumberOfOrders({
-        count,
-      });
-    },
+  const { ordersData } = useOrdersByGroup({
+    sortBy: sortBy || 'created_at',
+    sortDirection: sortDirection || 'desc',
+    offset: queryObject.offset || 0,
+    limit: queryObject.limit || DEFAULT_PAGE_SIZE,
+    q: query || queryObject.query || queryObject.q,
+    status: queryObject.status,
+    paymentStatus: queryObject.payment_status,
+    fulfillmentStatus: queryObject.fulfillment_status,
+    salesChannelId: queryObject.sales_channel_id,
+    regionId: queryObject.region_id,
+    club: filters.club?.open ? filters.club.filter : null,
+    ga: filters.ga?.open ? filters.ga.filter : null,
+    ref: filters.ref?.open ? filters.ref.filter : null,
+    odoo: filters.odoo?.open ? filters.odoo.filter : null,
+    created_at: queryObject.created_at,
   });
 
   useEffect(() => {
-    const controlledPageCount = Math.ceil(count! / queryObject.limit);
-    setNumPages(controlledPageCount);
-    refetch();
-  }, [orders]);
+    if (ordersData.total) {
+      trackNumberOfOrders({
+        count: ordersData.total,
+      });
+    }
+  }, [ordersData.total]);
+
+  const handleSortChange = (newSortBy: string | null, newSortDirection: string | null) => {
+    setSortBy(newSortBy);
+    setSortDirection(newSortDirection);
+    gotoPage(0); // Reset to first page when sorting changes
+  };
+
+  useEffect(() => {
+    if (typeof ordersData.total !== 'undefined') {
+      const controlledPageCount = Math.ceil(ordersData.total / queryObject.limit);
+      setNumPages(controlledPageCount);
+    }
+  }, [ordersData.total, queryObject.limit]);
 
   useEffect(() => {
     setContextFilters(filters as {});
   }, [filters]);
+
+  // Reset page when search query changes
+  useEffect(() => {
+    if (query !== filtersOnLoad?.query && query !== filtersOnLoad?.q) {
+      gotoPage(0);
+    }
+  }, [query]);
 
   const [columns] = useOrderTableColums();
 
@@ -93,12 +128,11 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
     gotoPage,
     nextPage,
     previousPage,
-    // Get the state from the instance
     state: { pageIndex },
   } = useTable(
     {
       columns,
-      data: orders || [],
+      data: ordersData.orders || [],
       manualPagination: true,
       initialState: {
         pageSize: lim,
@@ -118,10 +152,11 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
         setFreeText(query);
         gotoPage(0);
       } else {
-        // if we delete query string, we reset the table view
-        reset();
+        if (typeof query !== 'undefined') {
+          reset();
+        }
       }
-    }, 400);
+    }, 1000);
 
     return () => clearTimeout(delayDebounceFn);
   }, [query]);
@@ -165,6 +200,9 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
   const clearFilters = () => {
     reset();
     setQuery('');
+    setSortBy('created_at');
+    setSortDirection('desc');
+    gotoPage(0); // Reset to first page when clearing filters
   };
 
   useEffect(() => {
@@ -174,11 +212,11 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
   return (
     <div>
       <TableContainer
-        isLoading={isLoading}
+        isLoading={false}
         hasPagination
         numberOfRows={lim}
         pagingState={{
-          count: count!,
+          count: ordersData.total || 0,
           offset: queryObject.offset,
           pageSize: queryObject.offset + rows.length,
           title: 'Orders',
@@ -193,22 +231,25 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
       >
         <Table
           filteringOptions={
-            <OrderFilters
-              filters={filters}
-              submitFilters={setFilters}
-              clearFilters={clearFilters}
-              tabs={filterTabs}
-              onTabClick={setTab}
-              activeTab={activeFilterTab}
-              onRemoveTab={removeTab}
-              onSaveTab={saveTab}
-            />
+            <div className="flex items-center gap-2">
+              <OrderFilters
+                filters={filters}
+                submitFilters={setFilters}
+                clearFilters={clearFilters}
+                tabs={filterTabs}
+                onTabClick={setTab}
+                activeTab={activeFilterTab}
+                onRemoveTab={removeTab}
+                onSaveTab={saveTab}
+              />
+              <OrderSortDropdown sortBy={sortBy} sortDirection={sortDirection} onSortChange={handleSortChange} />
+            </div>
           }
           enableSearch
           handleSearch={setQuery}
           searchValue={query}
           {...getTableProps()}
-          className={clsx({ ['relative']: isLoading })}
+          className={clsx({ ['relative']: false })}
         >
           <Table.Head>
             {headerGroups?.map((headerGroup, index) => (
@@ -227,7 +268,7 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
               return (
                 <Table.Row
                   color={'inherit'}
-                  linkTo={`/a/orders/${row.original.id}`}
+                  linkTo={`/a/orders/${(row.original as any).id}`}
                   {...row.getRowProps()}
                   className="group"
                   key={index}

@@ -119,7 +119,7 @@ const useOrderTableColums = () => {
         Cell: ({ cell: { value } }) => value,
       },
       {
-        Header: t('order-table-payment-status', 'Payment status'),
+        Header: t('order-table-payment-status-new', 'Payment'),
         accessor: 'payment_status',
         Cell: ({ cell: { value } }) => decideStatus(value),
       },
@@ -136,7 +136,7 @@ const useOrderTableColums = () => {
           }),
       },
       {
-        Header: t('order-table-sales-channel', 'Sales Channel'),
+        Header: t('order-table-sales-channel-new', 'Sales Channel'),
         accessor: 'sales_channel',
         Cell: ({ cell: { value } }) => value?.name ?? 'N/A',
       },
