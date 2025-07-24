@@ -212,7 +212,7 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
   return (
     <div>
       <TableContainer
-        isLoading={false}
+        isLoading={ordersData.isLoading}
         hasPagination
         numberOfRows={lim}
         pagingState={{
