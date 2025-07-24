@@ -44,6 +44,7 @@ type useOrdersByGroupProps = {
 type useOrdersByGroupReturn = {
   orders: Order[];
   total: number;
+  isLoading: boolean;
 };
 
 const useOrdersByGroup = ({
@@ -63,7 +64,12 @@ const useOrdersByGroup = ({
   odoo,
   created_at,
 }: useOrdersByGroupProps) => {
-  const [ordersData, setOrdersData] = useState<useOrdersByGroupReturn>({ orders: [], total: 0 });
+  const [ordersData, setOrdersData] = useState<useOrdersByGroupReturn>({
+    orders: [],
+    total: 0,
+    isLoading: true,
+  });
+
   const fetchOrders = async () => {
     try {
       const path = `/admin/sorted-orders`;
@@ -86,17 +92,18 @@ const useOrdersByGroup = ({
       });
 
       if (!res?.data) {
-        return { orders: [], total: 0 };
+        return { orders: [], total: 0, isLoading: false };
       }
 
-      return res?.data;
+      return { ...res?.data, isLoading: false };
     } catch (error) {
       console.error('Error fetching orders:', error);
-      return { orders: [], total: 0 };
+      return { orders: [], total: 0, isLoading: false };
     }
   };
 
   useEffect(() => {
+    setOrdersData(prev => ({ ...prev, isLoading: true }));
     fetchOrders().then(data => {
       setOrdersData(data);
     });

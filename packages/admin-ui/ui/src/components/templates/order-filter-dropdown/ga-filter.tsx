@@ -65,11 +65,11 @@ const GaFilter = ({ open, filter, setFilter }: GaFilterProps) => {
             onClick={() => handleRadioChange(true)}
           >
             <div
-              className={`text-grey-0 border-grey-30 rounded-base mr-2 flex h-5 w-5 justify-center border ${
-                filter === true && 'bg-violet-60'
+              className={`rounded-circle mr-2 flex h-[15px] w-[15px] shrink-0 items-center justify-center shadow-[0_0_0_1px] shadow-[#D1D5DB] ${
+                filter === true && 'shadow-violet-60'
               }`}
             >
-              <span className="self-center">{filter === true && <CheckIcon size={16} />}</span>
+              {filter === true && <div className="bg-violet-60 rounded-circle h-[9px] w-[9px]"></div>}
             </div>
             <input type="radio" className="hidden" name="ga-filter" checked={filter === true} readOnly />
             <span>With Google Ads</span>
@@ -83,11 +83,11 @@ const GaFilter = ({ open, filter, setFilter }: GaFilterProps) => {
             onClick={() => handleRadioChange(false)}
           >
             <div
-              className={`text-grey-0 border-grey-30 rounded-base mr-2 flex h-5 w-5 justify-center border ${
-                filter === false && 'bg-violet-60'
+              className={`rounded-circle mr-2 flex h-[15px] w-[15px] shrink-0 items-center justify-center shadow-[0_0_0_1px] shadow-[#D1D5DB] ${
+                filter === false && 'shadow-violet-60'
               }`}
             >
-              <span className="self-center">{filter === false && <CheckIcon size={16} />}</span>
+              {filter === false && <div className="bg-violet-60 rounded-circle h-[9px] w-[9px]"></div>}
             </div>
             <input type="radio" className="hidden" name="ga-filter" checked={filter === false} readOnly />
             <span>Without Google Ads</span>
