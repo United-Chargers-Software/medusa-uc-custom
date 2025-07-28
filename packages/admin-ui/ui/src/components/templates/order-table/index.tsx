@@ -62,6 +62,7 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
   const lim = parseInt(queryObject.limit) || DEFAULT_PAGE_SIZE;
 
   const [query, setQuery] = useState(filtersOnLoad?.query || filtersOnLoad?.q);
+  const [debouncedQuery, setDebouncedQuery] = useState(filtersOnLoad?.query || filtersOnLoad?.q);
   const [numPages, setNumPages] = useState(0);
 
   const { ordersData } = useOrdersByGroup({
@@ -69,7 +70,7 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
     sortDirection: sortDirection || 'desc',
     offset: queryObject.offset || 0,
     limit: queryObject.limit || DEFAULT_PAGE_SIZE,
-    q: query || queryObject.query || queryObject.q,
+    q: debouncedQuery || queryObject.query || queryObject.q,
     status: queryObject.status,
     paymentStatus: queryObject.payment_status,
     fulfillmentStatus: queryObject.fulfillment_status,
@@ -114,6 +115,22 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
     }
   }, [query]);
 
+  // Debounced search
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      setDebouncedQuery(query);
+      if (query) {
+        setFreeText(query);
+      } else {
+        if (typeof query !== 'undefined') {
+          reset();
+        }
+      }
+    }, 1000);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [query]);
+
   const [columns] = useOrderTableColums();
 
   const {
@@ -144,22 +161,6 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
     },
     usePagination,
   );
-
-  // Debounced search
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (query) {
-        setFreeText(query);
-        gotoPage(0);
-      } else {
-        if (typeof query !== 'undefined') {
-          reset();
-        }
-      }
-    }, 1000);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [query]);
 
   const handleNext = () => {
     if (canNextPage) {
@@ -200,6 +201,7 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
   const clearFilters = () => {
     reset();
     setQuery('');
+    setDebouncedQuery('');
     setSortBy('created_at');
     setSortDirection('desc');
     gotoPage(0); // Reset to first page when clearing filters
