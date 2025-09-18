@@ -53,10 +53,10 @@ const OrderIndex = () => {
           <CashIcon size={20} />
           Orders Reports
         </Button>
-        <Button key="export-orders" variant="secondary" size="small" onClick={() => openExportModal()}>
+        {/* <Button key="export-orders" variant="secondary" size="small" onClick={() => openExportModal()}>
           <ExportIcon size={20} />
           Export Orders
-        </Button>
+        </Button> */}
       </div>,
     ];
   }, [view]);
