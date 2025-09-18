@@ -21,6 +21,18 @@ const SalesReportModal: React.FC<ExportModalProps> = ({ handleClose, title, load
   const [startDate, setStartDate] = useState(new Date(now.getFullYear(), now.getMonth(), 1));
   const [endDate, setEndDate] = useState(now);
   const [urlParams, setUrlParams] = useState('');
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   // Date select
 
@@ -54,23 +66,23 @@ const SalesReportModal: React.FC<ExportModalProps> = ({ handleClose, title, load
   }, [startDate, endDate]);
 
   return (
-    <Modal handleClose={handleClose}>
+    <Modal handleClose={handleClose} isLargeModal={windowWidth > 1024 ? true : false}>
       <Modal.Body>
         <Modal.Header handleClose={handleClose}>
           <span className="inter-xlarge-semibold">{title}</span>
         </Modal.Header>
         <Modal.Content>
-          <div className="flex flex-row items-center justify-start gap-4">
-            <div className="basis-1/2">
+          <div className="medium:flex-row medium:gap-4 flex flex-col items-center justify-start gap-2">
+            <div className="w-full basis-1/2">
               <DateSelect selectedDate={startDate} setDate={setStartDate} filterTitle="From date" />
             </div>
-            <div className="basis-1/2">
+            <div className="w-full basis-1/2">
               <DateSelect selectedDate={endDate} setDate={setEndDate} filterTitle="To date" />
             </div>
           </div>
         </Modal.Content>
         <Modal.Footer>
-          <div className="column flex w-full items-start justify-center gap-2">
+          <div className="medium:flex-row flex w-full flex-col items-start justify-center gap-2">
             {/* <Button
               variant="ghost"
               size="small"
@@ -78,7 +90,7 @@ const SalesReportModal: React.FC<ExportModalProps> = ({ handleClose, title, load
             >
               Cancel
             </Button> */}
-            <div className="mb-2 flex flex-col gap-2">
+            <div className="mb-2 flex w-full flex-col gap-2">
               <Button
                 loading={loading}
                 disabled={loading}
@@ -99,7 +111,7 @@ const SalesReportModal: React.FC<ExportModalProps> = ({ handleClose, title, load
               </Button>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="mb-2 flex w-full flex-col gap-2">
               <Button
                 loading={loading}
                 disabled={loading}
@@ -109,6 +121,18 @@ const SalesReportModal: React.FC<ExportModalProps> = ({ handleClose, title, load
               >
                 Shipping report
               </Button>
+              <Button
+                loading={loading}
+                disabled={loading}
+                variant="primary"
+                size="small"
+                onClick={() => getReport('shipping-report-v2')}
+              >
+                Shipping report v2
+              </Button>
+            </div>
+
+            <div className="flex w-full flex-col gap-2">
               <Button
                 loading={loading}
                 disabled={loading}

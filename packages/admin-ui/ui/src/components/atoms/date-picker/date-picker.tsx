@@ -34,15 +34,46 @@ const DatePicker: React.FC<DateTimePickerProps> = ({
 }) => {
   const [tempDate, setTempDate] = useState<Date | null>(date || null);
   const [isOpen, setIsOpen] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   useEffect(() => setTempDate(date), [isOpen]);
 
   const handlePickedDate = (date: Date | null) => {
-    if (!tempDate || !date) {
+    // if(!tempDate || !date) {
+    if (!date) {
       return;
     }
 
     setTempDate(date);
+
+    // Submit date immediately on selection
+    if (!date) {
+      onSubmitDate(null);
+      setIsOpen(false);
+      return;
+    }
+
+    // update only date, month and year
+    const newDate = new Date(date.getTime());
+    if (date) {
+      newDate.setUTCDate(date.getUTCDate());
+      newDate.setUTCMonth(date.getUTCMonth());
+      newDate.setUTCFullYear(date.getUTCFullYear());
+    }
+
+    onSubmitDate(newDate);
+    setIsOpen(false);
   };
 
   const submitDate = () => {
@@ -95,10 +126,12 @@ const DatePicker: React.FC<DateTimePickerProps> = ({
         </PopoverPrimitive.Trigger>
         <PopoverPrimitive.Content
           side="top"
-          sideOffset={8}
-          className="rounded-rounded border-grey-20  bg-grey-0 shadow-dropdown w-full border px-8"
+          sideOffset={windowWidth > 1024 ? 0 : -90}
+          avoidCollisions={true}
+          className="rounded-rounded border-grey-20 bg-grey-0 shadow-dropdown z-50 w-full border px-2"
         >
           <CalendarComponent date={tempDate} onChange={date => handlePickedDate(date)} />
+          {/* 
           <div className="mb-8 mt-5 flex w-full">
             <Button
               variant="ghost"
@@ -115,6 +148,7 @@ const DatePicker: React.FC<DateTimePickerProps> = ({
               className="flex w-2/3 justify-center"
             >{`Set ${label}`}</Button>
           </div>
+          */}
         </PopoverPrimitive.Content>
       </PopoverPrimitive.Root>
     </div>
