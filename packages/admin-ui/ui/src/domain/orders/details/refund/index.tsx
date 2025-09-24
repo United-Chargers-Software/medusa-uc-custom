@@ -39,9 +39,14 @@ type RefundMenuProps = {
 const RefundMenu = ({ order, onDismiss, initialAmount, initialReason }: RefundMenuProps) => {
   const { t } = useTranslation();
   const { user } = useAdminGetSession();
+
+  const refundable = useMemo(() => {
+    return order.paid_total - order.refunded_total;
+  }, [order]);
+
   const { register, handleSubmit, control } = useForm<RefundMenuFormData>({
     defaultValues: {
-      amount: initialAmount,
+      amount: initialAmount || refundable,
       reason: reasonOptions[initialReason === 'other' ? 1 : 0],
     },
   });
@@ -50,10 +55,6 @@ const RefundMenu = ({ order, onDismiss, initialAmount, initialReason }: RefundMe
 
   const notification = useNotification();
   const { mutate, isLoading } = useAdminRefundPayment(order.id);
-
-  const refundable = useMemo(() => {
-    return order.paid_total - order.refunded_total;
-  }, [order]);
 
   const handleValidateRefundAmount = value => {
     return value <= refundable;
