@@ -16,6 +16,8 @@ import useNotification from '../../../../hooks/use-notification';
 import { Option } from '../../../../types/shared';
 import { getErrorMessage } from '../../../../utils/error-messages';
 import FormValidator from '../../../../utils/form-validator';
+import { formatAmountWithSymbol } from '../../../../utils/prices';
+import CopyToClipboard from '../../../../components/atoms/copy-to-clipboard';
 
 type RefundMenuFormData = {
   amount: number;
@@ -46,7 +48,7 @@ const RefundMenu = ({ order, onDismiss, initialAmount, initialReason }: RefundMe
 
   const { register, handleSubmit, control } = useForm<RefundMenuFormData>({
     defaultValues: {
-      amount: initialAmount || refundable,
+      amount: initialAmount,
       reason: reasonOptions[initialReason === 'other' ? 1 : 0],
     },
   });
@@ -113,6 +115,18 @@ const RefundMenu = ({ order, onDismiss, initialAmount, initialReason }: RefundMe
               </div>
             )}
             <span className="inter-base-semibold">{t('refund-details', 'Details')}</span>
+
+            <div className="inter-small-semibold text-grey-50 my-4 flex items-center gap-2 text-xs">
+              <p>{t('refund-refundable', 'Refundable amount:')}</p>
+              <p className="text-black">
+                {formatAmountWithSymbol({ amount: refundable, currency: order.currency_code })}
+              </p>
+              <CopyToClipboard
+                value={formatAmountWithSymbol({ amount: refundable, currency: order.currency_code })}
+                showValue={false}
+              />
+            </div>
+
             <div className="gap-y-base mt-4 grid">
               <CurrencyInput.Root size="small" currentCurrency={order.currency_code} readOnly>
                 <Controller
