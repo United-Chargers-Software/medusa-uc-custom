@@ -595,8 +595,18 @@ const OrderDetails = () => {
                   }
                 >
                   <div className="mt-6">
-                    {order.payments.map(payment => (
-                      <div className="flex flex-col" key={payment.id}>
+                    {(() => {
+                      const lastRefund = order.refunded_total && order.refunds && order.refunds.length > 0
+                        ? order.refunds.reduce((latest, refund) => {
+                            const refundDate = new Date(refund.created_at)
+                            const latestDate = new Date(latest.created_at)
+                            return refundDate > latestDate ? refund : latest
+                          }, order.refunds[0])
+                        : null
+                      return (
+                        <>
+                          {order.payments.map(payment => (
+                            <div className="flex flex-col" key={payment.id}>
                         <DisplayTotal
                           currency={order.currency_code}
                           totalAmount={payment.amount}
@@ -626,21 +636,43 @@ const OrderDetails = () => {
                               </div>
                             </div>
                           </div>
-                        )}
-                      </div>
-                    ))}
-                    <div className="mt-4 flex justify-between">
-                      <div className="inter-small-semibold text-grey-90">{t('details-total-paid', 'Total Paid')}</div>
-                      <div className="flex">
-                        <div className="inter-small-semibold text-grey-90 mr-3">
-                          {formatAmountWithSymbol({
-                            amount: order.paid_total - order.refunded_total,
-                            currency: order.currency_code,
-                          })}
-                        </div>
-                        <div className="inter-small-regular text-grey-50">{order.currency_code.toUpperCase()}</div>
-                      </div>
-                    </div>
+                            )}
+                            </div>
+                          ))}
+                          <div className="mt-4 flex justify-between">
+                            <div className="inter-small-semibold text-grey-90">{t('details-total-paid', 'Total Paid')}</div>
+                            <div className="flex">
+                              <div className="inter-small-semibold text-grey-90 mr-3">
+                                {formatAmountWithSymbol({
+                                  amount: order.paid_total - order.refunded_total,
+                                  currency: order.currency_code,
+                                })}
+                              </div>
+                              <div className="inter-small-regular text-grey-50">{order.currency_code.toUpperCase()}</div>
+                            </div>
+                          </div>
+                          {lastRefund && (
+                            <div className="mt-4 flex justify-between">
+                              <div className="flex flex-col">
+                                <div className="inter-small-semibold text-grey-90">{t('details-last-refund', 'Last refund')}</div>
+                                <div className="inter-small-regular text-grey-50 mt-1">
+                                  {moment(lastRefund.created_at).format('DD MMM YYYY hh:mm')}
+                                </div>
+                              </div>
+                              <div className="flex">
+                                <div className="inter-small-semibold text-grey-90 mr-3">
+                                  {formatAmountWithSymbol({
+                                    amount: lastRefund.amount,
+                                    currency: order.currency_code,
+                                  })}
+                                </div>
+                                <div className="inter-small-regular text-grey-50">{order.currency_code.toUpperCase()}</div>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )
+                    })()}
                   </div>
                 </BodyCard>
                 <BodyCard
