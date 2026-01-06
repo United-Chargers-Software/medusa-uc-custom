@@ -1,7 +1,7 @@
 import clsx from 'clsx';
 import { isEmpty } from 'lodash';
 import qs from 'qs';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { usePagination, useTable } from 'react-table';
 import { useAnalytics } from '../../../providers/analytics-provider';
@@ -64,6 +64,7 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
   const [query, setQuery] = useState(filtersOnLoad?.query || filtersOnLoad?.q);
   const [debouncedQuery, setDebouncedQuery] = useState(filtersOnLoad?.query || filtersOnLoad?.q);
   const [numPages, setNumPages] = useState(0);
+  const prevFiltersRef = useRef<string>('');
 
   const { ordersData } = useOrdersByGroup({
     sortBy: sortBy || 'created_at',
@@ -79,6 +80,7 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
     club: filters.club?.open ? filters.club.filter : null,
     ga: filters.ga?.open ? filters.ga.filter : null,
     ref: filters.ref?.open ? filters.ref.filter : null,
+    clubMembership: filters.clubMembershipId?.open ? filters.clubMembershipId.filter : null,
     odoo: filters.odoo?.open ? filters.odoo.filter : null,
     created_at: queryObject.created_at,
   });
@@ -107,6 +109,26 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
   useEffect(() => {
     setContextFilters(filters as {});
   }, [filters]);
+
+  // Reset page to first page when filters change (except offset/limit)
+  useEffect(() => {
+    const currentFiltersForComparison = { ...representationObject };
+    delete currentFiltersForComparison.offset;
+    delete currentFiltersForComparison.limit;
+    
+    const currentFiltersString = JSON.stringify(currentFiltersForComparison);
+    
+    if (prevFiltersRef.current && prevFiltersRef.current !== currentFiltersString) {
+      const currentOffset = parseInt(queryObject.offset) || 0;
+      if (currentOffset > 0) {
+        gotoPage(0);
+        paginate(0, 'goToPage');
+      }
+    }
+    
+    prevFiltersRef.current = currentFiltersString;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [representationObject]);
 
   // Reset page when search query changes
   useEffect(() => {

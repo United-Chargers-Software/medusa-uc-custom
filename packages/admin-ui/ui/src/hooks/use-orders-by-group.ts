@@ -34,6 +34,7 @@ type useOrdersByGroupProps = {
   club?: boolean | null;
   ga?: boolean | null;
   ref?: boolean | null;
+  clubMembership?: string | null;
   odoo?: OdooFilterState | null;
   created_at?: {
     lt?: string;
@@ -61,6 +62,7 @@ const useOrdersByGroup = ({
   club,
   ga,
   ref,
+  clubMembership,
   odoo,
   created_at,
 }: useOrdersByGroupProps) => {
@@ -87,6 +89,7 @@ const useOrdersByGroup = ({
         club,
         ga,
         ref,
+        clubMembership,
         odoo,
         created_at,
       });
@@ -121,6 +124,7 @@ const useOrdersByGroup = ({
     club,
     ga,
     ref,
+    clubMembership,
     odoo,
     created_at,
   ]);

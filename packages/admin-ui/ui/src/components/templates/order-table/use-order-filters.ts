@@ -27,6 +27,7 @@ type OrderFilterAction =
   | { type: 'setClub'; payload: null | boolean }
   | { type: 'setGa'; payload: null | boolean }
   | { type: 'setRef'; payload: null | boolean }
+  | { type: 'setClubMembershipId'; payload: null | string }
   | { type: 'setOdoo'; payload: null | OdooFilterState };
 
 interface OrderFilterState {
@@ -67,6 +68,10 @@ interface OrderFilterState {
     open: boolean;
     filter: null | boolean;
   };
+  clubMembershipId: {
+    open: boolean;
+    filter: null | string;
+  };
   odoo: {
     open: boolean;
     filter: null | OdooFilterState;
@@ -88,6 +93,7 @@ const allowedFilters = [
   'club',
   'ga',
   'ref',
+  'clubMembership',
   'odoo',
 ];
 
@@ -122,6 +128,22 @@ const formatDateFilter = (filter: OrderDateFilter) => {
 const reducer = (state: OrderFilterState, action: OrderFilterAction): OrderFilterState => {
   switch (action.type) {
     case 'setFilters': {
+      const filtersChanged = 
+        JSON.stringify(state.region) !== JSON.stringify(action.payload.region) ||
+        JSON.stringify(state.salesChannel) !== JSON.stringify(action.payload.salesChannel) ||
+        JSON.stringify(state.fulfillment) !== JSON.stringify(action.payload.fulfillment) ||
+        JSON.stringify(state.payment) !== JSON.stringify(action.payload.payment) ||
+        JSON.stringify(state.status) !== JSON.stringify(action.payload.status) ||
+        JSON.stringify(state.date) !== JSON.stringify(action.payload.date) ||
+        JSON.stringify(state.club) !== JSON.stringify(action.payload.club) ||
+        JSON.stringify(state.ga) !== JSON.stringify(action.payload.ga) ||
+        JSON.stringify(state.ref) !== JSON.stringify(action.payload.ref) ||
+        JSON.stringify(state.clubMembershipId) !== JSON.stringify(action.payload.clubMembershipId) ||
+        JSON.stringify(state.odoo) !== JSON.stringify(action.payload.odoo) ||
+        state.query !== action.payload.query;
+      
+      const offset = filtersChanged ? 0 : (action.payload.offset !== undefined ? action.payload.offset : state.offset);
+      
       return {
         ...state,
         region: action.payload.region,
@@ -133,8 +155,10 @@ const reducer = (state: OrderFilterState, action: OrderFilterAction): OrderFilte
         club: action.payload.club,
         ga: action.payload.ga,
         ref: action.payload.ref,
+        clubMembershipId: action.payload.clubMembershipId,
         odoo: action.payload.odoo,
         query: action?.payload?.query,
+        offset,
       };
     }
     case 'setQuery': {
@@ -293,6 +317,10 @@ export const useOrderFilters = (existing?: string, defaultFilters: OrderDefaultF
           open: false,
           filter: null,
         },
+        clubMembershipId: {
+          open: false,
+          filter: null,
+        },
         odoo: {
           open: false,
           filter: null,
@@ -313,7 +341,7 @@ export const useOrderFilters = (existing?: string, defaultFilters: OrderDefaultF
   const getQueryObject = () => {
     const toQuery: any = { ...state.additionalFilters };
 
-    const nullCheckFilters = ['club', 'ga', 'ref', 'odoo'];
+    const nullCheckFilters = ['club', 'ga', 'ref', 'clubMembershipId', 'odoo'];
 
     for (const [key, value] of Object.entries(state)) {
       if (key === 'query') {
@@ -467,6 +495,10 @@ export const useOrderFilters = (existing?: string, defaultFilters: OrderDefaultF
           open: false,
           filter: null,
         },
+        clubMembershipId: {
+          open: false,
+          filter: null,
+        },
         odoo: {
           open: false,
           filter: null,
@@ -580,6 +612,7 @@ const filterStateMap: { [key: string]: string } = {
   club: 'club',
   ga: 'ga',
   ref: 'ref',
+  clubMembership: 'clubMembershipId',
   odoo: 'odoo',
 };
 
@@ -593,6 +626,7 @@ const stateFilterMap: { [key: string]: string } = {
   club: 'club',
   ga: 'ga',
   ref: 'ref',
+  clubMembershipId: 'clubMembership',
   odoo: 'odoo',
 };
 
@@ -631,6 +665,10 @@ const parseQueryString = (queryString?: string, additionals: OrderDefaultFilters
       filter: null,
     },
     ref: {
+      open: false,
+      filter: null,
+    },
+    clubMembershipId: {
       open: false,
       filter: null,
     },
@@ -743,6 +781,15 @@ const parseQueryString = (queryString?: string, additionals: OrderDefaultFilters
               defaultVal.ref = {
                 open: true,
                 filter: value === 'true',
+              };
+            }
+            break;
+          }
+          case 'clubMembership': {
+            if (typeof value === 'string') {
+              defaultVal.clubMembershipId = {
+                open: true,
+                filter: value,
               };
             }
             break;
