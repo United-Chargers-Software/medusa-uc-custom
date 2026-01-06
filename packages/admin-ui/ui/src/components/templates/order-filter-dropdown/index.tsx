@@ -11,6 +11,7 @@ import { useFeatureFlag } from '../../../providers/feature-flag-provider';
 import ClubFilter from './club-filter';
 import GaFilter from './ga-filter';
 import RefFilter from './ref-filter';
+import ClubMembershipIdFilter from './club-membership-id-filter';
 import OdooFilter from './odoo-filter';
 
 const REGION_PAGE_SIZE = 15;
@@ -253,6 +254,11 @@ const OrderFilters = ({
           open={tempState.ref.open}
           filter={tempState.ref.filter}
           setFilter={val => setSingleFilter('ref', val)}
+        />
+        <ClubMembershipIdFilter
+          open={tempState.clubMembershipId.open}
+          filter={tempState.clubMembershipId.filter}
+          setFilter={val => setSingleFilter('clubMembershipId', val)}
         />
         <OdooFilter
           open={tempState.odoo.open}
