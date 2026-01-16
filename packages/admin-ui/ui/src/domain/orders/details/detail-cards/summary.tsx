@@ -266,22 +266,35 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ order, reservations }) => {
           totalAmount={order.shipping_total}
           totalTitle={t('detail-cards-shipping', 'Shipping')}
         />
-        {taxes.map(({ taxName, value }, index) => (
-          <DisplayTotal
-            key={index}
-            currency={order.currency_code}
-            totalAmount={
-              (order.subtotal - clubProductsSubtotal + order.shipping_total - (order.discount_total ?? 0)) *
-              (value / 100)
-            }
-            totalTitle={`${taxName} (${value}%)`}
-          />
-        ))}
-        <DisplayTotal
-          currency={order.currency_code}
-          totalAmount={order.tax_total}
-          totalTitle={t('detail-cards-tax', 'Tax')}
-        />
+        {(() => {
+          // Calculate tax base: if there are club products, exclude them from taxation
+          const taxBase = clubProductsSubtotal > 0
+            ? (order.subtotal - clubProductsSubtotal) + order.shipping_total
+            : order.subtotal + order.shipping_total - (order.discount_total ?? 0);
+
+          const calculatedTaxes = taxes.map(({ taxName, value }) => {
+            const taxAmount = Math.ceil((taxBase / 100 * (value / 100) + 0.0001) * 100);
+            return { taxName, value, taxAmount };
+          });
+
+          return (
+            <>
+              {calculatedTaxes.map(({ taxName, value, taxAmount }, index) => (
+                <DisplayTotal
+                  key={index}
+                  currency={order.currency_code}
+                  totalAmount={taxAmount}
+                  totalTitle={`${taxName} (${value}%)`}
+                />
+              ))}
+              <DisplayTotal
+                currency={order.currency_code}
+                totalAmount={order.tax_total}
+                totalTitle={t('detail-cards-tax', 'Tax')}
+              />
+            </>
+          );
+        })()}
         <DisplayTotal
           variant={'large'}
           currency={order.currency_code}
