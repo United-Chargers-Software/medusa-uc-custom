@@ -10,6 +10,7 @@ const orderRelations = [
   "shipping_methods.shipping_option",
   "payments",
   "items",
+  "items.variant.product.collection",
   "fulfillments",
   "fulfillments.tracking_links",
   "returns",

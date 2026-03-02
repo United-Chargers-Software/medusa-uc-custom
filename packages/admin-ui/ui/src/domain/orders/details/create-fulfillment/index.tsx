@@ -65,6 +65,8 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
   }>({});
 
   const [metadata, setMetadata] = useState<MetadataField[]>([{ key: '', value: '' }]);
+  const [serialNumbers, setSerialNumbers] = useState<Record<string, string[]>>({});
+  const [serialValidationErrors, setSerialValidationErrors] = useState<Record<string, (string | null)[]>>({});
 
   const { stock_locations, refetch } = useAdminStockLocations(
     {},
@@ -119,6 +121,18 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
   const notification = useNotification();
 
   const createFulfillment = () => {
+    const hasSerialValidationErrors = Object.values(serialValidationErrors).some(arr =>
+      Array.isArray(arr) && arr.some(msg => msg != null && msg !== ''),
+    );
+    if (hasSerialValidationErrors) {
+      notification(
+        t('create-fulfillment-error', 'Error'),
+        t('create-fulfillment-serial-required-or-invalid', 'Enter serial numbers for all items and ensure they match the product serial code'),
+        'error',
+      );
+      return;
+    }
+
     if (isLocationFulfillmentEnabled && !locationSelectValue.value) {
       notification(
         t('create-fulfillment-error', 'Error'),
@@ -183,6 +197,15 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
             ? `${user.first_name.trim()} ${user.last_name.trim()}`
             : 'admin';
         const userEmail = user && user?.email ? user.email : '';
+        const serialNumbersForRequest = (() => {
+          const entries = Object.entries(serialNumbers)
+            .map(([itemId, arr]) => [
+              itemId,
+              arr.map(s => (s ?? '').trim()).filter(Boolean),
+            ])
+            .filter(([, arr]) => arr.length > 0);
+          return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+        })();
         requestObj = {
           metadata: {
             ...preparedMetadata,
@@ -190,6 +213,9 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
               name: userName,
               email: userEmail,
             },
+            ...(serialNumbersForRequest && Object.keys(serialNumbersForRequest).length > 0
+              ? { serial_numbers: serialNumbersForRequest }
+              : {}),
           },
           no_notification: noNotis,
           items: Object.entries(quantities)
@@ -286,6 +312,10 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
                 setQuantities={setQuantities}
                 locationId={locationSelectValue.value}
                 setErrors={setErrors}
+                serialNumbers={serialNumbers}
+                setSerialNumbers={setSerialNumbers}
+                serialValidationErrors={serialValidationErrors}
+                setSerialValidationErrors={setSerialValidationErrors}
               />
             </div>
             <div className="mt-4">

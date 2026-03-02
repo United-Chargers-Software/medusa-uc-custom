@@ -72,6 +72,7 @@ import openUrlNewWindow from '../../../utils/open-link-new-window';
 import { useAccess } from '../../../providers/access-provider';
 import StatusDot from '../../../components/fundamentals/status-indicator';
 import useChangeStatus from './hooks/useChangeStatus';
+import useOrdersExpandParam from './utils/use-admin-expand-paramter';
 import { FulfilmentStatuses, PaymentStatuses } from '../../../types/utils';
 
 type OrderDetailFulfillment = {
@@ -166,7 +167,8 @@ const OrderDetails = () => {
   const [showRefund, setShowRefund] = useState(false);
   const [fullfilmentToShip, setFullfilmentToShip] = useState(null);
 
-  const { order, isLoading, refetch } = useAdminOrder(id!);
+  const { orderRelations } = useOrdersExpandParam();
+  const { order, isLoading, refetch } = useAdminOrder(id!, { expand: orderRelations });
 
   const capturePayment = useAdminCapturePayment(id!);
   const cancelOrder = useAdminCancelOrder(id!);
