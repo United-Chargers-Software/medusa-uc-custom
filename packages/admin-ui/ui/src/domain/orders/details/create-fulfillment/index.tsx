@@ -15,6 +15,7 @@ import {
   useAdminFulfillClaim,
   useAdminFulfillSwap,
   useAdminStockLocations,
+  useAdminUpdateOrder,
 } from 'medusa-react';
 
 import Button from '../../../../components/fundamentals/button';
@@ -114,6 +115,7 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
   const createOrderFulfillment = useAdminCreateFulfillment(orderId);
   const createSwapFulfillment = useAdminFulfillSwap(orderId);
   const createClaimFulfillment = useAdminFulfillClaim(orderId);
+  const { mutate: updateOrder } = useAdminUpdateOrder(orderId);
 
   const isSubmitting =
     createOrderFulfillment.isLoading || createSwapFulfillment.isLoading || createClaimFulfillment.isLoading;
@@ -159,6 +161,16 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
     let successText = t('create-fulfillment-successfully-fulfilled-order', 'Successfully fulfilled order');
     let requestObj;
 
+    const serialNumbersForCart = (() => {
+      const entries = Object.entries(serialNumbers)
+        .map(([itemId, arr]) => [
+          itemId,
+          arr.map(s => (s ?? '').trim()).filter(Boolean),
+        ])
+        .filter(([, arr]) => arr.length > 0);
+      return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+    })();
+
     const preparedMetadata = metadata.reduce((acc, next) => {
       if (next.key) {
         return {
@@ -197,15 +209,6 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
             ? `${user.first_name.trim()} ${user.last_name.trim()}`
             : 'admin';
         const userEmail = user && user?.email ? user.email : '';
-        const serialNumbersForRequest = (() => {
-          const entries = Object.entries(serialNumbers)
-            .map(([itemId, arr]) => [
-              itemId,
-              arr.map(s => (s ?? '').trim()).filter(Boolean),
-            ])
-            .filter(([, arr]) => arr.length > 0);
-          return entries.length > 0 ? Object.fromEntries(entries) : undefined;
-        })();
         requestObj = {
           metadata: {
             ...preparedMetadata,
@@ -213,9 +216,6 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
               name: userName,
               email: userEmail,
             },
-            ...(serialNumbersForRequest && Object.keys(serialNumbersForRequest).length > 0
-              ? { serial_numbers: serialNumbersForRequest }
-              : {}),
           },
           no_notification: noNotis,
           items: Object.entries(quantities)
@@ -234,11 +234,36 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
 
     action.mutate(requestObj, {
       onSuccess: () => {
+        if (type !== 'swap' && type !== 'claim' && serialNumbersForCart && Object.keys(serialNumbersForCart).length > 0) {
+          const order = orderToFulfill as Order;
+          const existingContextMetadata = (order.cart as any)?.context?.metadata ?? {};
+          const cartContext = (order.cart as any)?.context ?? {};
+          const hasMembershipId = !!(cartContext.membershipId ?? cartContext.club_membership);
+          const hasClubCollectionItem = order.items?.some(
+            (item: any) => item?.variant?.product?.collection?.handle === 'grizzl-e-club',
+          );
+          const isClubOrder = hasMembershipId && hasClubCollectionItem;
+          const stationSerialNumber = isClubOrder
+            ? Object.values(serialNumbersForCart).flat().filter(Boolean).join(', ')
+            : serialNumbersForCart;
+          updateOrder({
+            cart: {
+              context: {
+                ...(order.cart as any)?.context,
+                metadata: {
+                  ...existingContextMetadata,
+                  stationSerialNumber,
+                },
+              },
+            },
+          } as any);
+        }
         notification(t('create-fulfillment-success', 'Success'), successText, 'success');
         handleCancel();
         onComplete && onComplete();
       },
-      onError: err => notification(t('create-fulfillment-error', 'Error'), getErrorMessage(err), 'error'),
+      onError: err =>
+        notification(t('create-fulfillment-error', 'Error'), getErrorMessage(err), 'error'),
     });
   };
 
