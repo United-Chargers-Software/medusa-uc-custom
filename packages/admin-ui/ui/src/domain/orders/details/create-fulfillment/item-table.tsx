@@ -11,15 +11,14 @@ import { useFeatureFlag } from '../../../../providers/feature-flag-provider';
 
 const SERIAL_CODE_METADATA_KEY = '_serial_code';
 
-const getSerialCodePrefixes = (item: LineItem): string[] => {
-  const productMetadata = (item as any).variant?.product?.metadata as Record<string, unknown> | undefined;
+export const getSerialCodePrefixes = (item: LineItem): string[] => {
+  const productMetadata = (item as LineItem & { variant?: { product?: { metadata?: Record<string, unknown> } } }).variant?.product?.metadata;
   const raw = productMetadata?.[SERIAL_CODE_METADATA_KEY];
   if (typeof raw !== 'string' || !raw.trim()) return [];
   return raw.split(',').map(s => s.trim()).filter(Boolean);
 };
 
-
-const validateSerialValue = (
+export const validateSerialValue = (
   value: string,
   allowedPrefixes: string[],
   serialRequiredByCollection: boolean,
@@ -35,16 +34,16 @@ const validateSerialValue = (
   return null;
 };
 
-export const getFulfillableQuantity = (item: LineItem): number => {
-  return item.quantity - (item.fulfilled_quantity || 0) - (item.returned_quantity || 0);
-};
-
-const isItemFromSerialRequiredCollection = (item: LineItem): boolean => {
-  const handle = (item as any).variant?.product?.collection?.handle;
+export const isItemFromSerialRequiredCollection = (item: LineItem): boolean => {
+  const handle = (item as LineItem & { variant?: { product?: { collection?: { handle?: string } } } }).variant?.product?.collection?.handle;
   if (typeof handle === 'string' && ['grizzl-e', 'grizzl-e-club', 'commercial'].includes(handle)) {
     return true;
   }
   return false;
+};
+
+export const getFulfillableQuantity = (item: LineItem): number => {
+  return item.quantity - (item.fulfilled_quantity || 0) - (item.returned_quantity || 0);
 };
 
 const CreateFulfillmentItemsTable = ({
