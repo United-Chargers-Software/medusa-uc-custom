@@ -24,7 +24,7 @@ import FeatureToggle from '../../../../components/fundamentals/feature-toggle';
 import FocusModal from '../../../../components/molecules/modal/focus-modal';
 import Select from '../../../../components/molecules/select/next-select/select';
 import Switch from '../../../../components/atoms/switch';
-import { getErrorMessage } from '../../../../utils/error-messages';
+import { getErrorNotificationText, getErrorMessage } from '../../../../utils/error-messages';
 import { useFeatureFlag } from '../../../../providers/feature-flag-provider';
 import useNotification from '../../../../hooks/use-notification';
 import { useAdminGetSession } from 'medusa-react';
@@ -232,39 +232,57 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
       requestObj.location_id = locationSelectValue.value;
     }
 
-    action.mutate(requestObj, {
-      onSuccess: () => {
-        if (type !== 'swap' && type !== 'claim' && serialNumbersForCart && Object.keys(serialNumbersForCart).length > 0) {
-          const order = orderToFulfill as Order;
-          const existingContextMetadata = (order.cart as any)?.context?.metadata ?? {};
-          const cartContext = (order.cart as any)?.context ?? {};
-          const hasMembershipId = !!(cartContext.membershipId ?? cartContext.club_membership);
-          const hasClubCollectionItem = order.items?.some(
-            (item: any) => item?.variant?.product?.collection?.handle === 'grizzl-e-club',
+    const runCreateFulfillment = () => {
+      action.mutate(requestObj, {
+        onSuccess: () => {
+          notification(t('create-fulfillment-success', 'Success'), successText, 'success');
+          handleCancel();
+          onComplete && onComplete();
+        },
+        onError: err => notification(t('create-fulfillment-error', 'Error'), getErrorNotificationText(err), 'error'),
+      });
+    };
+
+    const needUpdateSerialsFirst =
+      type !== 'swap' &&
+      type !== 'claim' &&
+      serialNumbersForCart &&
+      Object.keys(serialNumbersForCart).length > 0;
+
+    if (needUpdateSerialsFirst) {
+      const order = orderToFulfill as Order;
+      const existingContextMetadata = (order.cart as any)?.context?.metadata ?? {};
+      const cartContext = (order.cart as any)?.context ?? {};
+      const hasMembershipId = !!(cartContext.membershipId ?? cartContext.club_membership);
+      const hasClubCollectionItem = order.items?.some(
+        (item: any) => item?.variant?.product?.collection?.handle === 'grizzl-e-club',
+      );
+      const isClubOrder = hasMembershipId && hasClubCollectionItem;
+      const stationSerialNumber = isClubOrder
+        ? Object.values(serialNumbersForCart).flat().filter(Boolean).join(', ')
+        : Object.fromEntries(
+            Object.entries(serialNumbersForCart).map(([id, arr]) => [id, arr.join(', ')]),
           );
-          const isClubOrder = hasMembershipId && hasClubCollectionItem;
-          const stationSerialNumber = isClubOrder
-            ? Object.values(serialNumbersForCart).flat().filter(Boolean).join(', ')
-            : serialNumbersForCart;
-          updateOrder({
-            cart: {
-              context: {
-                ...(order.cart as any)?.context,
-                metadata: {
-                  ...existingContextMetadata,
-                  stationSerialNumber,
-                },
+      updateOrder(
+        {
+          cart: {
+            context: {
+              ...(order.cart as any)?.context,
+              metadata: {
+                ...existingContextMetadata,
+                stationSerialNumber,
               },
             },
-          } as any);
-        }
-        notification(t('create-fulfillment-success', 'Success'), successText, 'success');
-        handleCancel();
-        onComplete && onComplete();
-      },
-      onError: err =>
-        notification(t('create-fulfillment-error', 'Error'), getErrorMessage(err), 'error'),
-    });
+          },
+        } as any,
+        {
+          onSuccess: runCreateFulfillment,
+          onError: err => notification(t('create-fulfillment-error', 'Error'), getErrorNotificationText(err), 'error'),
+        },
+      );
+    } else {
+      runCreateFulfillment();
+    }
   };
 
   return (

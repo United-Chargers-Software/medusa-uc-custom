@@ -37,12 +37,15 @@ import Button from '../../../components/fundamentals/button';
 import DetailsIcon from '../../../components/fundamentals/details-icon';
 import CancelIcon from '../../../components/fundamentals/icons/cancel-icon';
 import ClipboardCopyIcon from '../../../components/fundamentals/icons/clipboard-copy-icon';
+import EditIcon from '../../../components/fundamentals/icons/edit-icon';
+import CheckIcon from '../../../components/fundamentals/icons/check-icon';
 import CornerDownRightIcon from '../../../components/fundamentals/icons/corner-down-right-icon';
 import DollarSignIcon from '../../../components/fundamentals/icons/dollar-sign-icon';
 import MailIcon from '../../../components/fundamentals/icons/mail-icon';
 import RefreshIcon from '../../../components/fundamentals/icons/refresh-icon';
 import TruckIcon from '../../../components/fundamentals/icons/truck-icon';
 import Actionables, { ActionType } from '../../../components/molecules/actionables';
+import Input from '../../../components/atoms/text-input';
 import JSONView from '../../../components/molecules/json-view';
 import BodyCard from '../../../components/organisms/body-card';
 import RawJSON from '../../../components/organisms/raw-json';
@@ -56,12 +59,17 @@ import useToggleState from '../../../hooks/use-toggle-state';
 import { useFeatureFlag } from '../../../providers/feature-flag-provider';
 import { useWidgets } from '../../../providers/widget-provider';
 import { isoAlpha2Countries } from '../../../utils/countries';
-import { getErrorMessage } from '../../../utils/error-messages';
+import { getErrorNotificationText, getErrorMessage } from '../../../utils/error-messages';
 import extractCustomerName from '../../../utils/extract-customer-name';
 import { formatAmountWithSymbol } from '../../../utils/prices';
 import OrderEditModal from '../edit/modal';
 import AddressModal from './address-modal';
 import CreateFulfillmentModal from './create-fulfillment';
+import {
+  getSerialCodePrefixes,
+  isItemFromSerialRequiredCollection,
+  validateSerialValue,
+} from './create-fulfillment/item-table';
 import SummaryCard from './detail-cards/summary';
 import EmailModal from './email-modal';
 import MarkShippedModal from './mark-shipped';
@@ -132,6 +140,68 @@ const gatherAllFulfillments = order => {
 
   return all;
 };
+
+type DeliveredItemRow = { itemId: string; title: string; serial: string; quantity: number };
+
+function getStationSerialsByItem(
+  raw: string | Record<string, string> | undefined
+): Record<string, string[]> | null {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    return trimmed ? { __single: [trimmed] } : null;
+  }
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    const result: Record<string, string[]> = {};
+    for (const [itemId, value] of Object.entries(raw)) {
+      result[itemId] =
+        typeof value === 'string'
+          ? value.split(',').map(s => s.trim()).filter(Boolean)
+          : [];
+    }
+    return Object.keys(result).length ? result : null;
+  }
+  return null;
+}
+
+function buildDeliveredItemsRows(
+  allFulfillments: OrderDetailFulfillment[],
+  orderItems: LineItem[],
+  stationSerials: Record<string, string[]> | null
+): DeliveredItemRow[] {
+  const rows: DeliveredItemRow[] = [];
+  let singleSerialUsed = false;
+
+  for (const { fulfillment } of allFulfillments) {
+    const items = fulfillment?.items ?? [];
+    for (const fi of items) {
+      const itemId = fi.item_id ?? (fi as { item?: LineItem }).item?.id;
+      if (!itemId) continue;
+      const quantity = fi.quantity ?? 0;
+      const orderItem = orderItems.find(i => i.id === itemId);
+      const lineItem = orderItem ?? (fi as { item?: LineItem }).item;
+      const title =
+        lineItem?.variant?.title ?? lineItem?.title ?? (fi as { item?: LineItem }).item?.title ?? '—';
+      const serials = stationSerials?.__single
+        ? stationSerials.__single
+        : stationSerials?.[itemId] ?? [];
+
+      for (let i = 0; i < quantity; i++) {
+        let serial = '—';
+        if (stationSerials?.__single) {
+          if (!singleSerialUsed && serials[0]) {
+            serial = serials[0];
+            singleSerialUsed = true;
+          }
+        } else {
+          serial = serials[i] ?? '—';
+        }
+        rows.push({ itemId, title, serial, quantity: 1 });
+      }
+    }
+  }
+  return rows;
+}
 
 interface IMembershipView {
   membership: any;
@@ -209,7 +279,6 @@ const OrderDetails = () => {
       setUserTaxId(order.cart.context.metadata.userTaxId);
     }
   }, [order?.cart_id]);
-
   useEffect(() => {
     refetch();
   }, [order]);
@@ -378,6 +447,105 @@ const OrderDetails = () => {
   };
 
   const allFulfillments = gatherAllFulfillments(order);
+
+  const deliveredItemsRows = useMemo(() => {
+    if (!order?.items?.length || !allFulfillments.length) return [];
+    const stationSerials = getStationSerialsByItem(
+      (order?.cart as { context?: { metadata?: { stationSerialNumber?: string | Record<string, string> } } })?.context
+        ?.metadata?.stationSerialNumber
+    );
+    return buildDeliveredItemsRows(allFulfillments, order.items, stationSerials);
+  }, [order?.items, order?.cart, allFulfillments.length]);
+
+  const [editingSerialRowIndex, setEditingSerialRowIndex] = useState<number | null>(null);
+  const [editingSerialValue, setEditingSerialValue] = useState('');
+  const [serialPatches, setSerialPatches] = useState<Record<number, string>>({});
+
+  const saveSerialNumber = (rowIndex: number, newSerial: string) => {
+    if (!order?.id || !order?.cart?.id) return;
+    const rows = deliveredItemsRows;
+    const row = rows[rowIndex];
+    if (row && order?.items) {
+      const orderItem = order.items.find((i: LineItem) => i.id === row.itemId);
+      if (orderItem) {
+        const allowedPrefixes = getSerialCodePrefixes(orderItem);
+        const isFromSerialRequiredCollection = isItemFromSerialRequiredCollection(orderItem);
+        const validation = validateSerialValue(newSerial, allowedPrefixes, isFromSerialRequiredCollection);
+        if (validation === 'required') {
+          notification(
+            t('details-error', 'Error'),
+            t('create-fulfillment-serial-required', 'Please enter serial number'),
+            'error',
+          );
+          return;
+        }
+        if (validation === 'invalid') {
+          notification(
+            t('details-error', 'Error'),
+            t('create-fulfillment-serial-does-not-match-product-code', 'Does not match the serial code specified in the product'),
+            'error',
+          );
+          return;
+        }
+      }
+    }
+    const byItem: Record<string, string[]> = {};
+    rows.forEach((row, idx) => {
+      const serial = idx === rowIndex ? newSerial : serialPatches[idx] ?? row.serial;
+      if (!byItem[row.itemId]) byItem[row.itemId] = [];
+      byItem[row.itemId].push(serial);
+    });
+    const stationSerialNumber = Object.fromEntries(
+      Object.entries(byItem).map(([id, arr]) => [id, arr.join(', ')])
+    );
+
+    const cartContext = (order.cart as { context?: Record<string, unknown> })?.context ?? {};
+    const existingMetadata = (cartContext as { metadata?: Record<string, unknown> }).metadata ?? {};
+    const isClubOrder = !!(
+      cartContext.club_membership ??
+      (order.metadata as Record<string, unknown>)?.membershipId
+    );
+
+    const onSuccess = () => {
+      setEditingSerialRowIndex(null);
+      setEditingSerialValue('');
+      setSerialPatches(prev => {
+        const next = { ...prev };
+        delete next[rowIndex];
+        return next;
+      });
+      refetch();
+      notification(t('details-success', 'Success'), t('details-serial-updated', 'Serial number updated'), 'success');
+    };
+    const onError = (err: Error) => notification(t('details-error', 'Error'), getErrorNotificationText(err), 'error');
+
+    updateOrder(
+      {
+        cart: {
+          context: {
+            ...cartContext,
+            metadata: {
+              ...existingMetadata,
+              stationSerialNumber,
+            },
+          },
+        },
+      } as any,
+      {
+        onSuccess: () => {
+          if (isClubOrder) {
+            client.admin.custom
+              .post(`/admin/orders/${order.id}/send-club-station-serials`, { stationSerialNumber })
+              .then(() => onSuccess())
+              .catch(onError);
+          } else {
+            onSuccess();
+          }
+        },
+        onError,
+      }
+    );
+  };
 
   const customerActionables: ActionType[] = [];
 
@@ -699,7 +867,7 @@ const OrderDetails = () => {
                   }
                 >
                   <div className="mt-6">
-                    {order.shipping_methods.map(method => (
+                    {order.shipping_methods.map((method, methodIndex) => (
                       <div className="flex flex-col" key={method.id}>
                         <span className="inter-small-regular text-grey-50">
                           {t('details-shipping-method', 'Shipping Method')}
@@ -707,8 +875,89 @@ const OrderDetails = () => {
                         <span className="inter-small-regular text-grey-90 mt-2">
                           {method?.shipping_option?.name || ''}
                         </span>
-                        <div className="mt-4 flex w-full flex-grow items-center">
-                          <JSONView data={method?.data} />
+                        <div className="mt-4 flex w-full flex-grow flex-col items-stretch">
+                          {allFulfillments.length > 0 && deliveredItemsRows.length > 0 && methodIndex === 0 ? (
+                            <>
+                              <span className="inter-small-regular text-grey-50 mb-2">
+                                {t('details-delivered-items', 'Delivered items')}
+                              </span>
+                              <div className="rounded-rounded border border-grey-20 overflow-hidden">
+                                <table className="w-full">
+                                  <thead>
+                                    <tr className="bg-grey-5 inter-small-semibold text-grey-50 border-b border-grey-20">
+                                      <th className="text-left py-2 px-3">{t('details-item', 'Item')}</th>
+                                      <th className="text-left py-2 px-3">{t('details-serial-number', 'Serial number')}</th>
+                                      <th className="text-right py-2 px-3">{t('details-quantity', 'Qty')}</th>
+                                      <th className="w-[44px] py-2 px-3" />
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {deliveredItemsRows.map((row, idx) => {
+                                      const isEditing = editingSerialRowIndex === idx;
+                                      const displaySerial = serialPatches[idx] ?? row.serial;
+                                      return (
+                                        <tr key={`${row.itemId}-${idx}`} className="inter-small-regular text-grey-90 border-b border-grey-10 last:border-0">
+                                          <td className="py-2 px-3">{row.title}</td>
+                                          <td className="py-2 px-3">
+                                            {isEditing ? (
+                                              <div className="flex items-center gap-1">
+                                                <Input
+                                                  value={editingSerialValue}
+                                                  onChange={e => setEditingSerialValue(e.target.value)}
+                                                  className="max-w-[160px]"
+                                                />
+                                                <Button
+                                                  variant="ghost"
+                                                  size="small"
+                                                  className="p-1"
+                                                  onClick={() => saveSerialNumber(idx, editingSerialValue)}
+                                                >
+                                                  <CheckIcon size={18} className="text-green-60" />
+                                                </Button>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="small"
+                                                  className="p-1"
+                                                  onClick={() => {
+                                                    setEditingSerialRowIndex(null);
+                                                    setEditingSerialValue('');
+                                                  }}
+                                                >
+                                                  <CancelIcon size={18} className="text-grey-50" />
+                                                </Button>
+                                              </div>
+                                            ) : (
+                                              <span>{displaySerial}</span>
+                                            )}
+                                          </td>
+                                          <td className="py-2 px-3 text-right">{row.quantity}</td>
+                                          <td className="py-2 px-3">
+                                            {!isEditing && (
+                                              <Tooltip content={t('details-edit-serial', 'Edit serial number')}>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="small"
+                                                  className="p-1 text-grey-50 hover:text-grey-90"
+                                                  onClick={() => {
+                                                    setEditingSerialRowIndex(idx);
+                                                    setEditingSerialValue(displaySerial);
+                                                  }}
+                                                >
+                                                  <EditIcon size={16} />
+                                                </Button>
+                                              </Tooltip>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </>
+                          ) : (
+                            <JSONView data={method?.data} />
+                          )}
                         </div>
                       </div>
                     ))}
