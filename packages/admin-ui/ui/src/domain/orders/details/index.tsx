@@ -506,6 +506,8 @@ const OrderDetails = () => {
       (order.metadata as Record<string, unknown>)?.membershipId
     );
 
+    const previousStationSerialNumber = existingMetadata.stationSerialNumber;
+
     const onSuccess = () => {
       setEditingSerialRowIndex(null);
       setEditingSerialValue('');
@@ -519,6 +521,23 @@ const OrderDetails = () => {
     };
     const onError = (err: Error) => notification(t('details-error', 'Error'), getErrorNotificationText(err), 'error');
 
+    const revertCartSerials = () => {
+      updateOrder(
+        {
+          cart: {
+            context: {
+              ...cartContext,
+              metadata: {
+                ...existingMetadata,
+                stationSerialNumber: previousStationSerialNumber,
+              },
+            },
+          },
+        },
+        { onSettled: () => refetch() }
+      );
+    };
+
     updateOrder(
       {
         cart: {
@@ -530,14 +549,17 @@ const OrderDetails = () => {
             },
           },
         },
-      } as any,
+      },
       {
         onSuccess: () => {
           if (isClubOrder) {
             client.admin.custom
               .post(`/admin/orders/${order.id}/send-club-station-serials`, { stationSerialNumber })
               .then(() => onSuccess())
-              .catch(onError);
+              .catch((err: Error) => {
+                revertCartSerials();
+                onError(err);
+              });
           } else {
             onSuccess();
           }
