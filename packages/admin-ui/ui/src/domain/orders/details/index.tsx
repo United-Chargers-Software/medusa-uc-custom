@@ -479,7 +479,7 @@ const OrderDetails = () => {
           );
           return;
         }
-        if (validation === 'invalid') {
+        if (validation === 'invalid' && allowedPrefixes.length > 0) {
           notification(
             t('details-error', 'Error'),
             t('create-fulfillment-serial-does-not-match-product-code', 'Does not match the serial code specified in the product'),
