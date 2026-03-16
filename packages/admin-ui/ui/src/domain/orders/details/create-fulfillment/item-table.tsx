@@ -34,9 +34,11 @@ export const validateSerialValue = (
   return null;
 };
 
+const SERIAL_COLLECTION_HANDLES = ['grizzl-e', 'grizzl-e-club', 'commercial', 'used'] as const;
+
 export const isItemFromSerialRequiredCollection = (item: LineItem): boolean => {
   const handle = (item as LineItem & { variant?: { product?: { collection?: { handle?: string } } } }).variant?.product?.collection?.handle;
-  if (typeof handle === 'string' && ['grizzl-e', 'grizzl-e-club', 'commercial'].includes(handle)) {
+  if (typeof handle === 'string' && (SERIAL_COLLECTION_HANDLES as readonly string[]).includes(handle)) {
     return true;
   }
   return false;
@@ -302,7 +304,10 @@ const FulfillmentLine = ({
         <div className="ml-10 mt-2 flex flex-col gap-2">
           <span className="inter-small-semibold text-grey-70">
             {t('create-fulfillment-serial-numbers', 'Serial number(s)')}
-            {(allowedPrefixes.length > 0 || isFromSerialRequiredCollection) && <span className="text-rose-50 ml-0.5">*</span>}
+            <span className="text-rose-50 ml-0.5">*</span>
+          </span>
+          <span className="inter-small-regular text-grey-50">
+            {t('create-fulfillment-serial-required-for-stations', 'Required for station products.')}
           </span>
           {serialsForItem.map((serial, index) => (
             <InputField
