@@ -7,7 +7,7 @@ import {
   Swap,
 } from '@medusajs/medusa';
 import { useTranslation } from 'react-i18next';
-import CreateFulfillmentItemsTable, { getFulfillableQuantity } from './item-table';
+import CreateFulfillmentItemsTable, { getFulfillableQuantity, isItemFromSerialRequiredCollection } from './item-table';
 import Metadata, { MetadataField } from '../../../../components/organisms/metadata';
 import React, { useEffect, useState } from 'react';
 import {
@@ -123,6 +123,25 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
   const notification = useNotification();
 
   const createFulfillment = () => {
+    const orderItems = (items || []) as Order['items'];
+    const itemsRequiringSerials = orderItems.filter(
+      (item: Order['items'][number]) => isItemFromSerialRequiredCollection(item) && (quantities[item.id] ?? 0) > 0,
+    );
+    const missingSerialsForItems = itemsRequiringSerials.filter((item: Order['items'][number]) => {
+      const qty = quantities[item.id] ?? 0;
+      const serials = serialNumbers[item.id] ?? [];
+      const filled = serials.slice(0, qty).map((s: string) => (s ?? '').trim()).filter(Boolean);
+      return filled.length < qty;
+    });
+    if (missingSerialsForItems.length > 0) {
+      notification(
+        t('create-fulfillment-error', 'Error'),
+        t('create-fulfillment-serial-required-or-invalid', 'Enter serial numbers for all items and ensure they match the product serial code'),
+        'error',
+      );
+      return;
+    }
+
     const hasSerialValidationErrors = Object.values(serialValidationErrors).some(arr =>
       Array.isArray(arr) && arr.some(msg => msg != null && msg !== ''),
     );
@@ -277,7 +296,9 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
         } as any,
         {
           onSuccess: runCreateFulfillment,
-          onError: err => notification(t('create-fulfillment-error', 'Error'), getErrorNotificationText(err), 'error'),
+          onError: err => {
+            notification(t('create-fulfillment-error', 'Error'), getErrorNotificationText(err), 'error');
+          },
         },
       );
     } else {

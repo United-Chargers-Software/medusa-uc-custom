@@ -465,28 +465,39 @@ const OrderDetails = () => {
     if (!order?.id || !order?.cart?.id) return;
     const rows = deliveredItemsRows;
     const row = rows[rowIndex];
-    if (row && order?.items) {
-      const orderItem = order.items.find((i: LineItem) => i.id === row.itemId);
-      if (orderItem) {
-        const allowedPrefixes = getSerialCodePrefixes(orderItem);
-        const isFromSerialRequiredCollection = isItemFromSerialRequiredCollection(orderItem);
-        const validation = validateSerialValue(newSerial, allowedPrefixes, isFromSerialRequiredCollection);
-        if (validation === 'required') {
-          notification(
-            t('details-error', 'Error'),
-            t('create-fulfillment-serial-required', 'Please enter serial number'),
-            'error',
-          );
-          return;
-        }
-        if (validation === 'invalid' && allowedPrefixes.length > 0) {
-          notification(
-            t('details-error', 'Error'),
-            t('create-fulfillment-serial-does-not-match-product-code', 'Does not match the serial code specified in the product'),
-            'error',
-          );
-          return;
-        }
+    if (!row || !order?.items) return;
+    const orderItem = order.items.find((i: LineItem) => i.id === row.itemId);
+    if (!orderItem) return;
+
+    const isFromSerialRequiredCollection = isItemFromSerialRequiredCollection(orderItem);
+    const allowedPrefixes = getSerialCodePrefixes(orderItem);
+
+    if (isFromSerialRequiredCollection && !(newSerial ?? '').trim()) {
+      notification(
+        t('details-error', 'Error'),
+        t('create-fulfillment-serial-required', 'Please enter serial number'),
+        'error',
+      );
+      return;
+    }
+
+    if (allowedPrefixes.length > 0) {
+      const validation = validateSerialValue(newSerial, allowedPrefixes, isFromSerialRequiredCollection);
+      if (validation === 'required') {
+        notification(
+          t('details-error', 'Error'),
+          t('create-fulfillment-serial-required', 'Please enter serial number'),
+          'error',
+        );
+        return;
+      }
+      if (validation === 'invalid') {
+        notification(
+          t('details-error', 'Error'),
+          t('create-fulfillment-serial-does-not-match-product-code', 'Does not match the serial code specified in the product'),
+          'error',
+        );
+        return;
       }
     }
     const byItem: Record<string, string[]> = {};
@@ -898,7 +909,13 @@ const OrderDetails = () => {
                           {method?.shipping_option?.name || ''}
                         </span>
                         <div className="mt-4 flex w-full flex-grow flex-col items-stretch">
-                          {allFulfillments.length > 0 && deliveredItemsRows.length > 0 && methodIndex === 0 ? (
+                          {allFulfillments.length > 0 &&
+                          deliveredItemsRows.length > 0 &&
+                          methodIndex === 0 &&
+                          deliveredItemsRows.some(row => {
+                            const orderItem = order?.items?.find((i: LineItem) => i.id === row.itemId);
+                            return orderItem ? isItemFromSerialRequiredCollection(orderItem) : false;
+                          }) ? (
                             <>
                               <span className="inter-small-regular text-grey-50 mb-2">
                                 {t('details-delivered-items', 'Delivered items')}
@@ -914,65 +931,72 @@ const OrderDetails = () => {
                                     </tr>
                                   </thead>
                                   <tbody>
-                                    {deliveredItemsRows.map((row, idx) => {
-                                      const isEditing = editingSerialRowIndex === idx;
-                                      const displaySerial = serialPatches[idx] ?? row.serial;
-                                      return (
-                                        <tr key={`${row.itemId}-${idx}`} className="inter-small-regular text-grey-90 border-b border-grey-10 last:border-0">
-                                          <td className="py-2 px-3">{row.title}</td>
-                                          <td className="py-2 px-3">
-                                            {isEditing ? (
-                                              <div className="flex items-center gap-1">
-                                                <Input
-                                                  value={editingSerialValue}
-                                                  onChange={e => setEditingSerialValue(e.target.value)}
-                                                  className="max-w-[160px]"
-                                                />
-                                                <Button
-                                                  variant="ghost"
-                                                  size="small"
-                                                  className="p-1"
-                                                  onClick={() => saveSerialNumber(idx, editingSerialValue)}
-                                                >
-                                                  <CheckIcon size={18} className="text-green-60" />
-                                                </Button>
-                                                <Button
-                                                  variant="ghost"
-                                                  size="small"
-                                                  className="p-1"
-                                                  onClick={() => {
-                                                    setEditingSerialRowIndex(null);
-                                                    setEditingSerialValue('');
-                                                  }}
-                                                >
-                                                  <CancelIcon size={18} className="text-grey-50" />
-                                                </Button>
-                                              </div>
-                                            ) : (
-                                              <span>{displaySerial}</span>
-                                            )}
-                                          </td>
-                                          <td className="py-2 px-3 text-right">{row.quantity}</td>
-                                          <td className="py-2 px-3">
-                                            {!isEditing && (
-                                              <Tooltip content={t('details-edit-serial', 'Edit serial number')}>
-                                                <Button
-                                                  variant="ghost"
-                                                  size="small"
-                                                  className="p-1 text-grey-50 hover:text-grey-90"
-                                                  onClick={() => {
-                                                    setEditingSerialRowIndex(idx);
-                                                    setEditingSerialValue(displaySerial);
-                                                  }}
-                                                >
-                                                  <EditIcon size={16} />
-                                                </Button>
-                                              </Tooltip>
-                                            )}
-                                          </td>
-                                        </tr>
-                                      );
-                                    })}
+                                    {deliveredItemsRows
+                                      .map((row, idx) => {
+                                        const orderItem = order?.items?.find((i: LineItem) => i.id === row.itemId);
+                                        const isStationItem = orderItem ? isItemFromSerialRequiredCollection(orderItem) : false;
+                                        return { row, idx, isStationItem };
+                                      })
+                                      .filter(({ isStationItem }) => isStationItem)
+                                      .map(({ row, idx }) => {
+                                        const isEditing = editingSerialRowIndex === idx;
+                                        const displaySerial = serialPatches[idx] ?? row.serial;
+                                        return (
+                                          <tr key={`${row.itemId}-${idx}`} className="inter-small-regular text-grey-90 border-b border-grey-10 last:border-0">
+                                            <td className="py-2 px-3">{row.title}</td>
+                                            <td className="py-2 px-3">
+                                              {isEditing ? (
+                                                <div className="flex items-center gap-1">
+                                                  <Input
+                                                    value={editingSerialValue}
+                                                    onChange={e => setEditingSerialValue(e.target.value)}
+                                                    className="max-w-[160px]"
+                                                  />
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="small"
+                                                    className="p-1"
+                                                    onClick={() => saveSerialNumber(idx, editingSerialValue)}
+                                                  >
+                                                    <CheckIcon size={18} className="text-green-60" />
+                                                  </Button>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="small"
+                                                    className="p-1"
+                                                    onClick={() => {
+                                                      setEditingSerialRowIndex(null);
+                                                      setEditingSerialValue('');
+                                                    }}
+                                                  >
+                                                    <CancelIcon size={18} className="text-grey-50" />
+                                                  </Button>
+                                                </div>
+                                              ) : (
+                                                <span>{displaySerial}</span>
+                                              )}
+                                            </td>
+                                            <td className="py-2 px-3 text-right">{row.quantity}</td>
+                                            <td className="py-2 px-3">
+                                              {!isEditing && (
+                                                <Tooltip content={t('details-edit-serial', 'Edit serial number')}>
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="small"
+                                                    className="p-1 text-grey-50 hover:text-grey-90"
+                                                    onClick={() => {
+                                                      setEditingSerialRowIndex(idx);
+                                                      setEditingSerialValue(displaySerial);
+                                                    }}
+                                                  >
+                                                    <EditIcon size={16} />
+                                                  </Button>
+                                                </Tooltip>
+                                              )}
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
                                   </tbody>
                                 </table>
                               </div>
