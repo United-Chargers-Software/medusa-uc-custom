@@ -68,7 +68,9 @@ export const FormattedFulfillment = ({
       fulfillmentData.shipmentCost,
       nestedData.shipmentCost,
       metadataData.shipmentCost
-    ) || "",
+    ) || (order?.shipping_total != null
+      ? `${(order.shipping_total / 100).toFixed(2)} (CAD)`
+      : ""),
     labelUrl: pickString(
       fulfillmentData.labelUrl,
       fulfillmentData.label_url,
