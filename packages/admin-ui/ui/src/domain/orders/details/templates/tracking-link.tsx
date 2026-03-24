@@ -47,6 +47,7 @@ export const TrackingLink = ({ trackingLink }: TProps) => {
               <a
                 style={{ textDecoration: "none" }}
                 target="_blank"
+                download={`${trackingLink.tracking_number}.pdf`}
                 href={trackingLink.metadata.labelUrl}
                 rel="noreferrer"
               >
