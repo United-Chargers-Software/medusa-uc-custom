@@ -35,6 +35,7 @@ export const validateSerialValue = (
 };
 
 const SERIAL_COLLECTION_HANDLES = ['grizzl-e', 'grizzl-e-club', 'commercial', 'used'] as const;
+const ACCESSORY_MID_CODES = new Set(['accessories', 'big_accessories']);
 
 export const isItemFromSerialRequiredCollection = (item: LineItem): boolean => {
   const handle = (item as LineItem & { variant?: { product?: { collection?: { handle?: string } } } }).variant?.product?.collection?.handle;
@@ -42,6 +43,14 @@ export const isItemFromSerialRequiredCollection = (item: LineItem): boolean => {
     return true;
   }
   return false;
+};
+
+export const isClubStationItem = (item: LineItem): boolean => {
+  const product = (item as LineItem & { variant?: { product?: { collection?: { handle?: string }; mid_code?: string | null } } }).variant?.product;
+  const handle = product?.collection?.handle;
+  const midCode = String(product?.mid_code ?? '').trim().toLowerCase();
+  const isAccessory = ACCESSORY_MID_CODES.has(midCode);
+  return handle === 'grizzl-e-club' && !isAccessory;
 };
 
 export const getFulfillableQuantity = (item: LineItem): number => {

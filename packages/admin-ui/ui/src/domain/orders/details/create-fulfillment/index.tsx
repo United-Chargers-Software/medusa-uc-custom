@@ -7,7 +7,7 @@ import {
   Swap,
 } from '@medusajs/medusa';
 import { useTranslation } from 'react-i18next';
-import CreateFulfillmentItemsTable, { getFulfillableQuantity, isItemFromSerialRequiredCollection } from './item-table';
+import CreateFulfillmentItemsTable, { getFulfillableQuantity, isClubStationItem, isItemFromSerialRequiredCollection } from './item-table';
 import Metadata, { MetadataField } from '../../../../components/organisms/metadata';
 import React, { useEffect, useState } from 'react';
 import {
@@ -272,16 +272,19 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
       const order = orderToFulfill as Order;
       const existingContextMetadata = (order.cart as any)?.context?.metadata ?? {};
       const cartContext = (order.cart as any)?.context ?? {};
-      const hasMembershipId = !!(cartContext.membershipId ?? cartContext.club_membership);
-      const hasClubCollectionItem = order.items?.some(
-        (item: any) => item?.variant?.product?.collection?.handle === 'grizzl-e-club',
+      const clubItemIds = new Set(
+        (order.items ?? []).filter(item => isClubStationItem(item)).map(i => i.id),
       );
-      const isClubOrder = hasMembershipId && hasClubCollectionItem;
-      const stationSerialNumber = isClubOrder
-        ? Object.values(serialNumbersForCart).flat().filter(Boolean).join(', ')
-        : Object.fromEntries(
-            Object.entries(serialNumbersForCart).map(([id, arr]) => [id, arr.join(', ')]),
-          );
+      const stationSerialNumber: Record<string, string> = {};
+      const nonClubStationSerialNumber: Record<string, string> = {};
+      for (const [itemId, arr] of Object.entries(serialNumbersForCart)) {
+        const joined = (arr as string[]).join(', ');
+        if (clubItemIds.has(itemId)) {
+          stationSerialNumber[itemId] = joined;
+        } else {
+          nonClubStationSerialNumber[itemId] = joined;
+        }
+      }
       updateOrder(
         {
           cart: {
@@ -290,6 +293,7 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
               metadata: {
                 ...existingContextMetadata,
                 stationSerialNumber,
+                nonClubStationSerialNumber,
               },
             },
           },
