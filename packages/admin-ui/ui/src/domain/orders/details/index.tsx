@@ -67,6 +67,7 @@ import AddressModal from './address-modal';
 import CreateFulfillmentModal from './create-fulfillment';
 import {
   getSerialCodePrefixes,
+  isClubStationItem,
   isItemFromSerialRequiredCollection,
   validateSerialValue,
 } from './create-fulfillment/item-table';
@@ -450,11 +451,26 @@ const OrderDetails = () => {
 
   const deliveredItemsRows = useMemo(() => {
     if (!order?.items?.length || !allFulfillments.length) return [];
-    const stationSerials = getStationSerialsByItem(
-      (order?.cart as { context?: { metadata?: { stationSerialNumber?: string | Record<string, string> } } })?.context
-        ?.metadata?.stationSerialNumber
-    );
-    return buildDeliveredItemsRows(allFulfillments, order.items, stationSerials);
+    const metadata = (
+      order?.cart as {
+        context?: {
+          metadata?: {
+            stationSerialNumber?: string | Record<string, string>;
+            nonClubStationSerialNumber?: string | Record<string, string>;
+          };
+        };
+      }
+    )?.context?.metadata;
+    const clubSerials = getStationSerialsByItem(metadata?.stationSerialNumber);
+    const nonClubSerials = getStationSerialsByItem(metadata?.nonClubStationSerialNumber);
+    const merged: Record<string, string[]> | null =
+      clubSerials || nonClubSerials
+        ? {
+            ...(clubSerials ?? {}),
+            ...(nonClubSerials ?? {}),
+          }
+        : null;
+    return buildDeliveredItemsRows(allFulfillments, order.items, merged);
   }, [order?.items, order?.cart, allFulfillments.length]);
 
   const [editingSerialRowIndex, setEditingSerialRowIndex] = useState<number | null>(null);
@@ -506,9 +522,17 @@ const OrderDetails = () => {
       if (!byItem[row.itemId]) byItem[row.itemId] = [];
       byItem[row.itemId].push(serial);
     });
-    const stationSerialNumber = Object.fromEntries(
-      Object.entries(byItem).map(([id, arr]) => [id, arr.join(', ')])
-    );
+    const stationSerialNumber: Record<string, string> = {};
+    const nonClubStationSerialNumber: Record<string, string> = {};
+    for (const [itemId, arr] of Object.entries(byItem)) {
+      const item = order.items.find((i: LineItem) => i.id === itemId);
+      const joined = arr.join(', ');
+      if (item && isClubStationItem(item)) {
+        stationSerialNumber[itemId] = joined;
+      } else {
+        nonClubStationSerialNumber[itemId] = joined;
+      }
+    }
 
     const cartContext = (order.cart as { context?: Record<string, unknown> })?.context ?? {};
     const existingMetadata = (cartContext as { metadata?: Record<string, unknown> }).metadata ?? {};
@@ -518,6 +542,7 @@ const OrderDetails = () => {
     );
 
     const previousStationSerialNumber = existingMetadata.stationSerialNumber;
+    const previousNonClubStationSerialNumber = existingMetadata.nonClubStationSerialNumber;
 
     const onSuccess = () => {
       setEditingSerialRowIndex(null);
@@ -541,6 +566,7 @@ const OrderDetails = () => {
               metadata: {
                 ...existingMetadata,
                 stationSerialNumber: previousStationSerialNumber,
+                nonClubStationSerialNumber: previousNonClubStationSerialNumber,
               },
             },
           },
@@ -548,6 +574,8 @@ const OrderDetails = () => {
         { onSettled: () => refetch() }
       );
     };
+
+    const editedItemIsClub = isClubStationItem(orderItem);
 
     updateOrder(
       {
@@ -557,13 +585,14 @@ const OrderDetails = () => {
             metadata: {
               ...existingMetadata,
               stationSerialNumber,
+              nonClubStationSerialNumber,
             },
           },
         },
       },
       {
         onSuccess: () => {
-          if (isClubOrder) {
+          if (isClubOrder && editedItemIsClub) {
             client.admin.custom
               .post(`/admin/orders/${order.id}/send-club-station-serials`, { stationSerialNumber })
               .then(() => onSuccess())
