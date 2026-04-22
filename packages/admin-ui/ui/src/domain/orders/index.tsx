@@ -160,10 +160,10 @@ const OrderIndex = () => {
           <CashIcon size={20} />
           Orders Reports
         </Button>
-        <Button key="packing-slips-report" variant="secondary" size="small" onClick={() => openPackingSlipsModal()}>
+        {/* <Button key="packing-slips-report" variant="secondary" size="small" onClick={() => openPackingSlipsModal()}>
           <CashIcon size={20} />
           Packing slips download
-        </Button>
+        </Button> */}
         <Button key="export-orders" variant="secondary" size="small" onClick={() => openExportModal()}>
           <ExportIcon size={20} />
           Export Orders
