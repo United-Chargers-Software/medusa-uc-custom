@@ -13,7 +13,7 @@ import { ReservationItemDTO } from '@medusajs/types';
 import ReserveItemsModal from '../reservation/reserve-items-modal';
 import { Response } from '@medusajs/medusa-js';
 import { sum } from 'lodash';
-import { useMedusa } from 'medusa-react';
+import { useAdminGetSession, useMedusa } from 'medusa-react';
 import StatusIndicator from '../../../../components/fundamentals/status-indicator';
 import useToggleState from '../../../../hooks/use-toggle-state';
 import { useFeatureFlag } from '../../../../providers/feature-flag-provider';
@@ -34,6 +34,8 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ order, reservations }) => {
   const { isFeatureEnabled } = useFeatureFlag();
   const inventoryEnabled = isFeatureEnabled('inventoryService');
   const { client: medusaClient } = useMedusa();
+  const { user } = useAdminGetSession();
+  const isSuperAdmin = user ? (user as { teamRole?: unknown }).teamRole == null : false;
 
   const [variantInventoryMap, setVariantInventoryMap] = React.useState<Map<string, VariantInventory>>(new Map());
 
@@ -152,32 +154,41 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ order, reservations }) => {
 
   useEffect(() => {
     const fetchClubProductsSubtotal = async () => {
+      if (!isSuperAdmin) {
+        setClubProductsSubtotal(0);
+        return;
+      }
+
       if (!order.items || !order.items.length) {
         setClubProductsSubtotal(0);
         return;
       }
 
-      const collections = await medusaClient.admin.collections.list();
-      const clubCollection = collections.collections.find(c => c.title === CLUB_PRODUCTS_COLLECTION_TITLE);
+      try {
+        const collections = await medusaClient.admin.collections.list();
+        const clubCollection = collections.collections.find(c => c.title === CLUB_PRODUCTS_COLLECTION_TITLE);
 
-      if (!clubCollection) {
-        setClubProductsSubtotal(0);
-        return;
-      }
-
-      const subtotal = order.items.reduce((total, item) => {
-        if (item.variant?.product?.collection_id === clubCollection.id) {
-          return total + (item.subtotal || 0);
+        if (!clubCollection) {
+          setClubProductsSubtotal(0);
+          return;
         }
 
-        return total;
-      }, 0);
+        const subtotal = order.items.reduce((total, item) => {
+          if (item.variant?.product?.collection_id === clubCollection.id) {
+            return total + (item.subtotal || 0);
+          }
 
-      setClubProductsSubtotal(subtotal);
+          return total;
+        }, 0);
+
+        setClubProductsSubtotal(subtotal);
+      } catch {
+        setClubProductsSubtotal(0);
+      }
     };
 
     fetchClubProductsSubtotal();
-  }, [order.items]);
+  }, [order.items, isSuperAdmin, medusaClient.admin.collections]);
 
   const isAllocatable = !['canceled', 'archived'].includes(order.status);
 

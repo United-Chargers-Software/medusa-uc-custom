@@ -1,7 +1,6 @@
 import { Address, ClaimOrder, Fulfillment, FulfillmentStatus, LineItem, Swap } from '@medusajs/medusa';
 import Medusa from '../../../services/api';
 import {
-  useAdminCancelOrder,
   useAdminCapturePayment,
   useAdminGetSession,
   useAdminOrder,
@@ -235,6 +234,7 @@ const OrderDetails = () => {
   const [showFulfillment, setShowFulfillment] = useState(false);
   const { client } = useMedusa();
   const { user } = useAdminGetSession();
+  const isSuperAdmin = user ? (user as { teamRole?: unknown }).teamRole == null : false;
   const [showRefund, setShowRefund] = useState(false);
   const [fullfilmentToShip, setFullfilmentToShip] = useState(null);
 
@@ -242,14 +242,13 @@ const OrderDetails = () => {
   const { order, isLoading, refetch } = useAdminOrder(id!, { expand: orderRelations });
 
   const capturePayment = useAdminCapturePayment(id!);
-  const cancelOrder = useAdminCancelOrder(id!);
 
   const { state: addressModalState, close: closeAddressModal, open: openAddressModal } = useToggleState();
 
   const { mutate: updateOrder } = useAdminUpdateOrder(id!);
 
   const { region } = useAdminRegion(order?.region_id!, {
-    enabled: !!order?.region_id,
+    enabled: !!order?.region_id && isSuperAdmin,
   });
   const { isFeatureEnabled } = useFeatureFlag();
   const inventoryEnabled = useMemo(() => {
@@ -261,15 +260,15 @@ const OrderDetails = () => {
       line_item_id: order?.items.map(item => item.id),
     },
     {
-      enabled: inventoryEnabled,
+      enabled: inventoryEnabled && isSuperAdmin,
     },
   );
 
   useEffect(() => {
-    if (inventoryEnabled) {
+    if (inventoryEnabled && isSuperAdmin) {
       refetchReservations();
     }
-  }, [inventoryEnabled, refetchReservations]);
+  }, [inventoryEnabled, isSuperAdmin, refetchReservations]);
 
   useEffect(() => {
     if (
@@ -413,6 +412,13 @@ const OrderDetails = () => {
   };
 
   const handleDeleteOrder = async () => {
+    if (!isSuperAdmin) {
+      notification(t('details-error', 'Error'), 'Cancel failed: only superadmins can cancel orders', 'error', {
+        duration: Infinity,
+      });
+      return;
+    }
+
     const shouldDelete = await dialog({
       heading: t('details-cancel-order-heading', 'Cancel order'),
       text: t('details-are-you-sure-you-want-to-cancel-the-order', 'Are you sure you want to cancel the order?'),
@@ -426,8 +432,32 @@ const OrderDetails = () => {
       return;
     }
 
-    return cancelOrder.mutate(undefined, {
-      onSuccess: () => {
+    type CancelIntegrationError = {
+      integration?: string;
+      error?: string;
+    };
+
+    type CancelOrderResponse = {
+      message?: string;
+      has_integration_errors?: boolean;
+      integration_errors?: CancelIntegrationError[];
+    };
+
+    return fetch(`${MEDUSA_BACKEND_URL_NOSLASH}/store/order/cancel/${order?.id}`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+      .then(async response => {
+        if (!response.ok) {
+          const errorBody = await response.json().catch(() => null);
+          throw { response: { data: { message: errorBody?.message } } };
+        }
+
+        const responseBody = (await response.json().catch(() => null)) as CancelOrderResponse | null;
+
         client.admin.custom.post(`admin/cancel-order-custom/${order?.id}`, {
           metadata: {
             order_canceled_by: {
@@ -438,13 +468,39 @@ const OrderDetails = () => {
         });
 
         notification(
-          t('details-success', 'Success'),
-          t('details-successfully-canceled-order', 'Successfully canceled order'),
-          'success',
+          responseBody?.has_integration_errors ? t('details-error', 'Error') : t('details-success', 'Success'),
+          responseBody?.has_integration_errors
+            ? 'Canceled with errors'
+            : t('details-successfully-canceled-order', 'Successfully canceled order'),
+          responseBody?.has_integration_errors ? 'warning' : 'success',
+          responseBody?.has_integration_errors ? { duration: Infinity } : undefined,
         );
-      },
-      onError: err => notification(t('details-error', 'Error'), getErrorMessage(err), 'error'),
-    });
+
+        if (responseBody?.has_integration_errors) {
+          const details =
+            responseBody.integration_errors
+              ?.map(item => {
+                const source = item.integration || 'integration';
+                const reason = item.error || 'Unknown error';
+                return `${source}: ${reason}`;
+              })
+              .join('; ') || 'Unknown integration error';
+
+          notification(
+            t('details-error', 'Error'),
+            `Cancellation completed with integration errors: ${details}`,
+            'error',
+            { duration: Infinity },
+          );
+        }
+
+        refetch();
+      })
+      .catch(err => {
+        const backendMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        const errorText = backendMessage ? `Cancel failed: ${backendMessage}` : 'Cancel failed';
+        notification(t('details-error', 'Error'), errorText, 'error', { duration: Infinity });
+      });
   };
 
   const allFulfillments = gatherAllFulfillments(order);
@@ -686,6 +742,13 @@ const OrderDetails = () => {
       ? item.quantity - (item.fulfilled_quantity ?? 0) - item.returned_quantity > 0
       : item.quantity > (item.fulfilled_quantity ?? 0),
   );
+  const cancellation = (order?.metadata as { cancellation?: Record<string, unknown> } | undefined)?.cancellation;
+  const isOrderCanceled = order?.status === 'canceled' || !!cancellation;
+  const hasCancellation = !!cancellation;
+  const isCreateFulfillmentDisabled =
+    order?.payment_status === 'refunded' ||
+    !anyItemsToFulfil ||
+    hasCancellation;
 
   const invoiceUrl = `${MEDUSA_BACKEND_URL_NOSLASH}/admin/invoice/${order?.id}/invoice-${order?.display_id}.pdf`;
   const packingUrl = `${MEDUSA_BACKEND_URL_NOSLASH}/admin/packing/${order?.id}/packing-slip-${order?.display_id}.pdf`;
@@ -760,16 +823,18 @@ const OrderDetails = () => {
                     </Tooltip>
                   }
                   subtitle={moment(order.created_at).format('D MMMM YYYY hh:mm a')}
-                  status={<OrderStatusComponent status={order.status} />}
-                  forceDropdown={true}
-                  // actionables={[
-                  //   {
-                  //     label: t('details-cancel-order', 'Cancel Order'),
-                  //     icon: <CancelIcon size={'20'} />,
-                  //     variant: 'danger',
-                  //     onClick: () => handleDeleteOrder(),
-                  //   },
-                  // ]}
+                  status={<OrderStatusComponent status={isOrderCanceled ? 'canceled' : order?.status} />}
+                  customActionable={
+                    <Button
+                      variant="secondary"
+                      size="small"
+                      disabled={isOrderCanceled || !isSuperAdmin}
+                      onClick={() => handleDeleteOrder()}
+                    >
+                      <CancelIcon size={20} />
+                      {t('details-cancel-order', 'Cancel Order')}
+                    </Button>
+                  }
                 >
                   <div className="mt-6 flex flex-wrap gap-4 divide-x">
                     <div className="flex flex-col">
@@ -915,14 +980,24 @@ const OrderDetails = () => {
                   customActionable={
                     order.status !== 'canceled' && (
                       <div className="flex items-center gap-2">
-                        <Button
-                          variant="secondary"
-                          size="small"
-                          disabled={order.payment_status === 'refunded' || !anyItemsToFulfil}
-                          onClick={() => setShowFulfillment(true)}
-                        >
-                          {t('details-create-fulfillment', 'Create Fulfillment')}
-                        </Button>
+                        {hasCancellation ? (
+                          <Tooltip content="Fulfillment is unavailable: order was manually canceled.">
+                            <div>
+                              <Button variant="secondary" size="small" disabled={isCreateFulfillmentDisabled}>
+                                {t('details-create-fulfillment', 'Create Fulfillment')}
+                              </Button>
+                            </div>
+                          </Tooltip>
+                        ) : (
+                          <Button
+                            variant="secondary"
+                            size="small"
+                            disabled={isCreateFulfillmentDisabled}
+                            onClick={() => setShowFulfillment(true)}
+                          >
+                            {t('details-create-fulfillment', 'Create Fulfillment')}
+                          </Button>
+                        )}
                         <Actionables actions={fulfilmentStatusActionables} />
                       </div>
                     )
