@@ -4,14 +4,19 @@ import Notification, {
 } from "../components/atoms/notification"
 
 const useNotification = () => {
-  return (title: string, message: string, type: NotificationTypes) => {
+  return (
+    title: string,
+    message: string,
+    type: NotificationTypes,
+    options?: { duration?: number }
+  ) => {
     toast.custom(
       (t) => (
         <Notification toast={t} type={type} title={title} message={message} />
       ),
       {
         position: "top-right",
-        duration: 3000,
+        duration: options?.duration ?? 3000,
       }
     )
   }
