@@ -412,6 +412,17 @@ const OrderDetails = () => {
   };
 
   const handleDeleteOrder = async () => {
+    type CancelIntegrationError = {
+      integration?: string;
+      error?: string;
+    };
+
+    type CancelOrderResponse = {
+      message?: string;
+      has_integration_errors?: boolean;
+      integration_errors?: CancelIntegrationError[];
+    };
+
     if (!isSuperAdmin) {
       notification(t('details-error', 'Error'), 'Cancel failed: only superadmins can cancel orders', 'error', {
         duration: Infinity,
@@ -432,31 +443,9 @@ const OrderDetails = () => {
       return;
     }
 
-    type CancelIntegrationError = {
-      integration?: string;
-      error?: string;
-    };
-
-    type CancelOrderResponse = {
-      message?: string;
-      has_integration_errors?: boolean;
-      integration_errors?: CancelIntegrationError[];
-    };
-
-    return fetch(`${MEDUSA_BACKEND_URL_NOSLASH}/store/order/cancel/${order?.id}`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-      .then(async response => {
-        if (!response.ok) {
-          const errorBody = await response.json().catch(() => null);
-          throw { response: { data: { message: errorBody?.message } } };
-        }
-
-        const responseBody = (await response.json().catch(() => null)) as CancelOrderResponse | null;
+    return client.admin.custom
+      .post(`/orders/cancel-custom/${order?.id}`, {})
+      .then((responseBody: CancelOrderResponse) => {
 
         client.admin.custom.post(`admin/cancel-order-custom/${order?.id}`, {
           metadata: {
