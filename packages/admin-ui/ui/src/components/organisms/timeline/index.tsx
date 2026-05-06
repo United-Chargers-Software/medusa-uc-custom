@@ -40,6 +40,7 @@ import ItemsShipped from '../../molecules/timeline-events/items-shipped';
 import Note from '../../molecules/timeline-events/note';
 import Notification from '../../molecules/timeline-events/notification';
 import OrderCanceled from '../../molecules/timeline-events/order-canceled';
+import EventContainer from '../../molecules/timeline-events/event-container';
 import EditCanceled from '../../molecules/timeline-events/order-edit/canceled';
 import EditConfirmed from '../../molecules/timeline-events/order-edit/confirmed';
 import EditCreated from '../../molecules/timeline-events/order-edit/created';
@@ -137,6 +138,7 @@ const Timeline: React.FC<TimelineProps> = ({ orderId, refetchOrder }) => {
             </div>
           ) : (
             <div className="flex flex-col">
+              {renderCustomerCanceledFromMetadata(order, events)}
               {events.map((event, i) => {
                 return <div key={i}>{switchOnType(event, refetch, refetchOrder)}</div>;
               })}
@@ -201,6 +203,51 @@ function switchOnType(event: TimelineEvent, refetch: () => void, refetchOrder: (
     default:
       return null;
   }
+}
+
+function renderCustomerCanceledFromMetadata(order, events?: TimelineEvent[]) {
+  const cancellation = (
+    order?.metadata as
+      | {
+          cancellation?: {
+            cancelled_by?: string;
+            canceled_by?: string;
+            manual_at?: string;
+          };
+        }
+      | undefined
+  )?.cancellation;
+
+  const cancelledBy = cancellation?.cancelled_by ?? cancellation?.canceled_by;
+
+  if (cancelledBy !== 'customer') {
+    return null;
+  }
+
+  const alreadyInNotes = (events || []).some(event => {
+    if (event.type !== 'note') {
+      return false;
+    }
+
+    return (event as NoteEvent).value?.startsWith('Order was canceled by customer');
+  });
+
+  if (alreadyInNotes) {
+    return null;
+  }
+
+  const eventTime = cancellation?.manual_at ? new Date(cancellation.manual_at) : new Date(order?.updated_at || Date.now());
+
+  return (
+    <EventContainer
+      icon={<AlertIcon size={20} />}
+      title="Order canceled by customer"
+      time={eventTime}
+      isFirst={false}
+    >
+      <div className="inter-small-regular text-grey-90">Order was canceled by customer.</div>
+    </EventContainer>
+  );
 }
 
 export default Timeline;

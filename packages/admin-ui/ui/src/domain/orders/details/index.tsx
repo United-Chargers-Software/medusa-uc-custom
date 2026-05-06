@@ -430,9 +430,19 @@ const OrderDetails = () => {
       return;
     }
 
+    const nextStatus =
+      order?.fulfillment_status === 'shipped' || order?.fulfillment_status === 'fulfilled' ? 'returned' : 'canceled';
+    const showRestockingFeeText = ['us', 'ca'].includes(order?.shipping_address?.country_code?.toLowerCase() || '');
+    const cancelPreviewText = `New status: ${nextStatus}.${
+      showRestockingFeeText ? ' Refund amount: order total - $50 (restocking fee).' : ''
+    }`;
+
     const shouldDelete = await dialog({
       heading: t('details-cancel-order-heading', 'Cancel order'),
-      text: t('details-are-you-sure-you-want-to-cancel-the-order', 'Are you sure you want to cancel the order?'),
+      text: `${cancelPreviewText} ${t(
+        'details-are-you-sure-you-want-to-cancel-the-order',
+        'Are you sure you want to cancel the order?',
+      )}`,
       extraConfirmation: false,
       // entityName: t('order-details-display-id', 'order #{{display_id}}', {
       //   display_id: order.display_id,
@@ -817,7 +827,7 @@ const OrderDetails = () => {
                     <Button
                       variant="secondary"
                       size="small"
-                      disabled={isOrderCanceled || !isSuperAdmin}
+                      disabled={hasCancellation || !isSuperAdmin}
                       onClick={() => handleDeleteOrder()}
                     >
                       <CancelIcon size={20} />
