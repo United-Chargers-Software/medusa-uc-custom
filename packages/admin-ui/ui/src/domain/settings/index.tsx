@@ -23,6 +23,7 @@ import PersonalInformation from "./personal-information"
 import Regions from "./regions"
 import ReturnReasons from "./return-reasons"
 import Taxes from "./taxes"
+import Printers from "./printers"
 import Users from "./users"
 import UsersPermissions from "./users-permissions"
 import UsersRoles from "./users-roles"
@@ -97,6 +98,12 @@ const settings: SettingsCardType[] = [
     description: "Manage users roles",
     icon: UsersIcon,
     to: "/a/settings/users-roles",
+  },
+  {
+    heading: "Printers",
+    description: "Manage printers and default assignments",
+    icon: GearIcon,
+    to: "/a/settings/printers",
   },
 ]
 
@@ -189,6 +196,7 @@ const Settings = () => {
       <Route path="/team" element={<Users />} />
       <Route path="/users-permissions" element={<UsersPermissions />} />
       <Route path="/users-roles" element={<UsersRoles />} />
+      <Route path="/printers" element={<Printers />} />
       <Route path="/personal-information" element={<PersonalInformation />} />
       <Route path="/taxes/*" element={<Taxes />} />
       {getSettings().map((s) => (
