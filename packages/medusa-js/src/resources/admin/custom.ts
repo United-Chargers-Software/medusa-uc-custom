@@ -44,6 +44,23 @@ class AdminCustomResource extends BaseResource {
     )
   }
 
+  patch<TPayload extends Record<string, any>, TResponse = any>(
+    path: string,
+    payload?: TPayload,
+    options?: RequestOptions,
+    customHeaders?: Record<string, any>
+  ): ResponsePromise<TResponse> {
+    const formattedPath = createAdminPath(path)
+
+    return this.client.request(
+      "PATCH",
+      formattedPath,
+      payload,
+      options,
+      customHeaders
+    )
+  }
+
   delete<TResponse = any>(
     path: string,
     options?: RequestOptions,

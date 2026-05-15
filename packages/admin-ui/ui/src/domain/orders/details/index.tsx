@@ -64,6 +64,8 @@ import { formatAmountWithSymbol } from '../../../utils/prices';
 import OrderEditModal from '../edit/modal';
 import AddressModal from './address-modal';
 import CreateFulfillmentModal from './create-fulfillment';
+import useEffectivePrinter from './use-effective-printer';
+import usePrinters from '../../settings/printers/use-printer';
 import {
   getSerialCodePrefixes,
   isClubStationItem,
@@ -251,6 +253,17 @@ const OrderDetails = () => {
     enabled: !!order?.region_id && isSuperAdmin,
   });
   const { isFeatureEnabled } = useFeatureFlag();
+  const effectivePrinter = useEffectivePrinter(order?.region_id);
+  const { printers, getPrinters } = usePrinters();
+  const [selectedPrinterNodeId, setSelectedPrinterNodeId] = useState<number | null | undefined>(undefined);
+
+  useEffect(() => { getPrinters() }, []);
+  useEffect(() => {
+    if (effectivePrinter !== undefined) {
+      setSelectedPrinterNodeId(effectivePrinter?.printnode_id ?? null);
+    }
+  }, [effectivePrinter]);
+
   const inventoryEnabled = useMemo(() => {
     return isFeatureEnabled('inventoryService');
   }, [isFeatureEnabled]);
@@ -979,6 +992,22 @@ const OrderDetails = () => {
                   customActionable={
                     order.status !== 'canceled' && (
                       <div className="flex items-center gap-2">
+                        {effectivePrinter !== undefined && (
+                          <select
+                            className="inter-small-regular text-grey-50 rounded border border-grey-20 bg-white px-2 py-1 text-xs focus:outline-none"
+                            value={selectedPrinterNodeId ?? ''}
+                            onChange={(e) =>
+                              setSelectedPrinterNodeId(e.target.value ? Number(e.target.value) : null)
+                            }
+                          >
+                            <option value="">{t('details-no-printer', 'No printer')}</option>
+                            {printers.map((p) => (
+                              <option key={p.printnode_id} value={p.printnode_id}>
+                                {p.name}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                         {hasCancellation ? (
                           <Tooltip content="Fulfillment is unavailable: order was manually canceled.">
                             <div>
@@ -1326,7 +1355,11 @@ const OrderDetails = () => {
                 orderToFulfill={order as any}
                 handleCancel={() => setShowFulfillment(false)}
                 orderId={order.id}
-                onComplete={inventoryEnabled ? refetchReservations : () => {}}
+                printerNodeId={selectedPrinterNodeId}
+                onComplete={() => {
+                  setSelectedPrinterNodeId(effectivePrinter?.printnode_id ?? null);
+                  if (inventoryEnabled) refetchReservations();
+                }}
               />
             )}
             {showRefund && <CreateRefundModal order={order} onDismiss={() => setShowRefund(false)} />}

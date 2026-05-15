@@ -1,6 +1,5 @@
 import { useAdminLogin } from "medusa-react"
 import { useForm } from "react-hook-form"
-import { useNavigate } from "react-router-dom"
 import { useWidgets } from "../../../providers/widget-provider"
 import { useTranslation } from "react-i18next"
 import InputError from "../../atoms/input-error"
@@ -8,18 +7,28 @@ import WidgetContainer from "../../extensions/widget-container"
 import Button from "../../fundamentals/button"
 import SigninInput from "../../molecules/input-signin"
 import { useAccess } from "../../../providers/access-provider"
-import { useEffect, useState } from "react"
+import { useMedusa } from "medusa-react"
+import { PrinterType } from "../../../domain/settings/printers/use-printer"
 
 type FormValues = {
   email: string
   password: string
 }
 
-type LoginCardProps = {
-  toResetPassword: () => void
+type PrinterPrompt = {
+  required: boolean
+  printers: PrinterType[]
+  current_printnode_id: number | null
 }
 
-const LoginCard = ({ toResetPassword }: LoginCardProps) => {
+type LoginCardProps = {
+  toResetPassword: () => void
+  onPrinterPrompt?: (prompt: PrinterPrompt) => void
+  onLoginStart?: () => void
+  onLoginEnd?: () => void
+}
+
+const LoginCard = ({ toResetPassword, onPrinterPrompt, onLoginStart, onLoginEnd }: LoginCardProps) => {
   const {
     register,
     handleSubmit,
@@ -29,12 +38,29 @@ const LoginCard = ({ toResetPassword }: LoginCardProps) => {
   const { mutate, isLoading } = useAdminLogin()
   const { t } = useTranslation()
   const { getWidgets } = useWidgets()
-  const { getAccess } = useAccess();
+  const { getAccess } = useAccess()
+  const { client } = useMedusa()
 
   const onSubmit = (values: FormValues) => {
     mutate(values, {
       onSuccess: async () => {
-        getAccess();
+        onLoginStart?.()
+        await getAccess()
+
+        if (onPrinterPrompt) {
+          try {
+            const res = await client.admin.custom.get("admin/printer/me/prompt")
+            const prompt = res as PrinterPrompt
+            if (prompt?.required && prompt.printers.length > 0) {
+              onPrinterPrompt(prompt)
+              return
+            }
+          } catch (e) {
+            // non-critical — fall through to normal redirect
+          }
+        }
+
+        onLoginEnd?.()
       },
       onError: () => {
         setError(
@@ -44,7 +70,7 @@ const LoginCard = ({ toResetPassword }: LoginCardProps) => {
             message: t(
               "login-card-no-match",
               "These credentials do not match our records."
-            ),
+            ) as string,
           },
           {
             shouldFocus: true,
@@ -72,13 +98,13 @@ const LoginCard = ({ toResetPassword }: LoginCardProps) => {
           </h1>
           <div>
             <SigninInput
-              placeholder={t("login-card-email", "Email")}
+              placeholder={t("login-card-email", "Email") as string}
               {...register("email", { required: true })}
               autoComplete="email"
               className="mb-small"
             />
             <SigninInput
-              placeholder={t("login-card-password", "Password")}
+              placeholder={t("login-card-password", "Password") as string}
               type={"password"}
               {...register("password", { required: true })}
               autoComplete="current-password"
