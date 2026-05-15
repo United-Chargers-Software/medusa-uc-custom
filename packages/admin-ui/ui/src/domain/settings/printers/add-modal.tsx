@@ -49,43 +49,41 @@ const AddPrinterModal = ({ onClose, onSuccess }: Props) => {
         <Modal.Header handleClose={onReset}>
           <h1 className="inter-xlarge-semibold m-0">{t("printers-add-title", "Add Printer")}</h1>
         </Modal.Header>
-        <form onSubmit={onSubmit}>
-          <Modal.Content>
-            <div className="flex flex-col gap-y-4">
-              <InputField
-                label={t("printers-printnode-id", "PrintNode ID")}
-                placeholder="12345"
-                required
-                type="number"
-                {...register("printnode_id", { required: "PrintNode ID is required" })}
-                errors={errors}
-              />
-              <InputField
-                label={t("printers-name", "Name")}
-                placeholder="Burnaby - Main"
-                required
-                {...register("name", { required: "Name is required" })}
-                errors={errors}
-              />
-              <InputField
-                label={t("printers-description", "Description")}
-                placeholder="HP LaserJet in room A"
-                {...register("description")}
-                errors={errors}
-              />
-            </div>
-          </Modal.Content>
-          <Modal.Footer>
-            <div className="flex w-full justify-end gap-x-2">
-              <Button size="small" variant="secondary" type="button" onClick={onReset}>
-                {t("printers-cancel", "Cancel")}
-              </Button>
-              <Button size="small" variant="primary" type="submit" disabled={!isDirty} loading={isLoading}>
-                {t("printers-add-button", "Add")}
-              </Button>
-            </div>
-          </Modal.Footer>
-        </form>
+        <Modal.Content>
+          <div className="flex flex-col gap-y-4">
+            <InputField
+              label={t("printers-printnode-id", "PrintNode ID")}
+              placeholder="12345"
+              required
+              type="number"
+              {...register("printnode_id", { required: "PrintNode ID is required" })}
+              errors={errors}
+            />
+            <InputField
+              label={t("printers-name", "Name")}
+              placeholder="Burnaby - Main"
+              required
+              {...register("name", { required: "Name is required" })}
+              errors={errors}
+            />
+            <InputField
+              label={t("printers-description", "Description")}
+              placeholder="HP LaserJet in room A"
+              {...register("description")}
+              errors={errors}
+            />
+          </div>
+        </Modal.Content>
+        <Modal.Footer>
+          <div className="flex w-full justify-end gap-x-2">
+            <Button size="small" variant="secondary" type="button" onClick={onReset}>
+              {t("printers-cancel", "Cancel")}
+            </Button>
+            <Button size="small" variant="primary" type="button" onClick={onSubmit} loading={isLoading}>
+              {t("printers-add-button", "Add")}
+            </Button>
+          </div>
+        </Modal.Footer>
       </Modal.Body>
     </Modal>
   )

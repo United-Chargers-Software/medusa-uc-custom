@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import EditIcon from "../../../components/fundamentals/icons/edit-icon"
+import TrashIcon from "../../../components/fundamentals/icons/trash-icon"
 import Table from "../../../components/molecules/table"
 import usePrinters, { PrinterType } from "./use-printer"
 import EditPrinterModal from "./edit-modal"
@@ -17,6 +18,7 @@ type ListElement = {
 
 const PrintersTable: React.FC<PrintersTableProps> = ({ printers, triggerRefetch }) => {
   const { t } = useTranslation()
+  const { remove } = usePrinters()
   const [elements, setElements] = useState<ListElement[]>([])
   const [shownElements, setShownElements] = useState<ListElement[]>([])
   const [selectedPrinter, setSelectedPrinter] = useState<PrinterType | null>(null)
@@ -58,6 +60,12 @@ const PrintersTable: React.FC<PrintersTableProps> = ({ printers, triggerRefetch 
           label: t("printers-edit", "Edit"),
           onClick: () => setSelectedPrinter(printer),
           icon: <EditIcon size={20} />,
+        },
+        {
+          label: t("printers-delete", "Delete"),
+          onClick: () => remove(printer.id, triggerRefetch),
+          icon: <TrashIcon size={20} />,
+          variant: "danger",
         },
       ]}
       forceDropdown

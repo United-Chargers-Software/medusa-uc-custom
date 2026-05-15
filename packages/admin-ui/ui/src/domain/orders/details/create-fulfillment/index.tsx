@@ -36,6 +36,7 @@ type CreateFulfillmentModalProps = {
   orderToFulfill: Order | ClaimOrder | Swap;
   orderId: string;
   onComplete?: () => void;
+  printerNodeId?: number | null;
 };
 
 const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
@@ -43,6 +44,7 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
   orderToFulfill,
   orderId,
   onComplete,
+  printerNodeId,
 }) => {
   const { t } = useTranslation();
   const { user } = useAdminGetSession();
@@ -199,7 +201,7 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
       } else {
         return acc;
       }
-    }, {});
+    }, printerNodeId != null ? { printer_id: printerNodeId } : {});
 
     switch (type) {
       case 'swap':

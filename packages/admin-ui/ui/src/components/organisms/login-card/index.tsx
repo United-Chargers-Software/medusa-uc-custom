@@ -24,9 +24,11 @@ type PrinterPrompt = {
 type LoginCardProps = {
   toResetPassword: () => void
   onPrinterPrompt?: (prompt: PrinterPrompt) => void
+  onLoginStart?: () => void
+  onLoginEnd?: () => void
 }
 
-const LoginCard = ({ toResetPassword, onPrinterPrompt }: LoginCardProps) => {
+const LoginCard = ({ toResetPassword, onPrinterPrompt, onLoginStart, onLoginEnd }: LoginCardProps) => {
   const {
     register,
     handleSubmit,
@@ -42,13 +44,14 @@ const LoginCard = ({ toResetPassword, onPrinterPrompt }: LoginCardProps) => {
   const onSubmit = (values: FormValues) => {
     mutate(values, {
       onSuccess: async () => {
+        onLoginStart?.()
         await getAccess()
 
         if (onPrinterPrompt) {
           try {
             const res = await client.admin.custom.get("admin/printer/me/prompt")
             const prompt = res as PrinterPrompt
-            if (prompt?.required) {
+            if (prompt?.required && prompt.printers.length > 0) {
               onPrinterPrompt(prompt)
               return
             }
@@ -56,6 +59,8 @@ const LoginCard = ({ toResetPassword, onPrinterPrompt }: LoginCardProps) => {
             // non-critical — fall through to normal redirect
           }
         }
+
+        onLoginEnd?.()
       },
       onError: () => {
         setError(

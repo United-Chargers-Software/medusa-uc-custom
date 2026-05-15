@@ -17,15 +17,16 @@ type PrinterPrompt = {
 const LoginPage = () => {
   const [resetPassword, setResetPassword] = useState(false)
   const [printerPrompt, setPrinterPrompt] = useState<PrinterPrompt | null>(null)
+  const [blockRedirect, setBlockRedirect] = useState(false)
 
   const { user } = useAdminGetSession()
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (user && !printerPrompt) {
+    if (user && !printerPrompt && !blockRedirect) {
       navigate("/")
     }
-  }, [user, navigate, printerPrompt])
+  }, [user, navigate, printerPrompt, blockRedirect])
 
   const showLogin = () => {
     setResetPassword(false)
@@ -56,6 +57,8 @@ const LoginPage = () => {
         <LoginCard
           toResetPassword={showResetPassword}
           onPrinterPrompt={handlePrinterPrompt}
+          onLoginStart={() => setBlockRedirect(true)}
+          onLoginEnd={() => setBlockRedirect(false)}
         />
       )}
       {printerPrompt?.required && (

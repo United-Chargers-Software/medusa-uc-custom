@@ -60,7 +60,7 @@ const usePrinters = () => {
   const update = async (id: string, data: UpdatePrinterData, onSuccess?: () => void) => {
     setIsLoading(true)
     try {
-      await client.admin.custom.patch(`admin/printer/${id}`, data)
+      await client.admin.custom.post(`admin/printer/${id}`, data)
       onSuccess?.()
     } catch (e) {
       console.error(e)
@@ -94,7 +94,31 @@ const usePrinters = () => {
     }
   }
 
-  return { printers, fetchPrinters, getPrinters, create, update, sync, setRegionDefault, isLoading }
+  const remove = async (id: string, onSuccess?: () => void) => {
+    setIsLoading(true)
+    try {
+      await client.admin.custom.delete(`admin/printer/${id}`)
+      onSuccess?.()
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const setUserDefault = async (userId: string, printnode_id: number, onSuccess?: () => void) => {
+    setIsLoading(true)
+    try {
+      await client.admin.custom.post(`admin/printer/user/${userId}`, { printnode_id })
+      onSuccess?.()
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return { printers, fetchPrinters, getPrinters, create, update, remove, sync, setRegionDefault, setUserDefault, isLoading }
 }
 
 export default usePrinters

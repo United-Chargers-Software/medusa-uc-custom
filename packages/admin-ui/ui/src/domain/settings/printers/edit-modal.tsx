@@ -26,7 +26,7 @@ const EditPrinterModal = ({ printer, onClose, onSuccess }: Props) => {
     register,
     handleSubmit,
     reset,
-    formState: { errors, isDirty },
+    formState: { errors },
   } = useForm<FormValues>()
 
   useEffect(() => {
@@ -60,48 +60,46 @@ const EditPrinterModal = ({ printer, onClose, onSuccess }: Props) => {
         <Modal.Header handleClose={onReset}>
           <h1 className="inter-xlarge-semibold m-0">{t("printers-edit-title", "Edit Printer")}</h1>
         </Modal.Header>
-        <form onSubmit={onSubmit}>
-          <Modal.Content>
-            <div className="flex flex-col gap-y-4">
-              <div className="flex items-center gap-x-2">
-                <span className="inter-small-regular text-grey-50">PrintNode ID:</span>
-                <span className="inter-small-semibold">{printer.printnode_id}</span>
-              </div>
-              <InputField
-                label={t("printers-name", "Name")}
-                required
-                {...register("name", { required: "Name is required" })}
-                errors={errors}
-              />
-              <InputField
-                label={t("printers-description", "Description")}
-                {...register("description")}
-                errors={errors}
-              />
-              <div className="flex items-center gap-x-2">
-                <input
-                  type="checkbox"
-                  id="is_active"
-                  className="h-4 w-4"
-                  {...register("is_active")}
-                />
-                <label htmlFor="is_active" className="inter-small-regular">
-                  {t("printers-active", "Active")}
-                </label>
-              </div>
+        <Modal.Content>
+          <div className="flex flex-col gap-y-4">
+            <div className="flex items-center gap-x-2">
+              <span className="inter-small-regular text-grey-50">PrintNode ID:</span>
+              <span className="inter-small-semibold">{printer.printnode_id}</span>
             </div>
-          </Modal.Content>
-          <Modal.Footer>
-            <div className="flex w-full justify-end gap-x-2">
-              <Button size="small" variant="secondary" type="button" onClick={onReset}>
-                {t("printers-cancel", "Cancel")}
-              </Button>
-              <Button size="small" variant="primary" type="submit" disabled={!isDirty} loading={isLoading}>
-                {t("printers-save-button", "Save")}
-              </Button>
+            <InputField
+              label={t("printers-name", "Name")}
+              required
+              {...register("name", { required: "Name is required" })}
+              errors={errors}
+            />
+            <InputField
+              label={t("printers-description", "Description")}
+              {...register("description")}
+              errors={errors}
+            />
+            <div className="flex items-center gap-x-2">
+              <input
+                type="checkbox"
+                id="is_active"
+                className="h-4 w-4"
+                {...register("is_active")}
+              />
+              <label htmlFor="is_active" className="inter-small-regular">
+                {t("printers-active", "Active")}
+              </label>
             </div>
-          </Modal.Footer>
-        </form>
+          </div>
+        </Modal.Content>
+        <Modal.Footer>
+          <div className="flex w-full justify-end gap-x-2">
+            <Button size="small" variant="secondary" type="button" onClick={onReset}>
+              {t("printers-cancel", "Cancel")}
+            </Button>
+            <Button size="small" variant="primary" type="button" onClick={onSubmit} loading={isLoading}>
+              {t("printers-save-button", "Save")}
+            </Button>
+          </div>
+        </Modal.Footer>
       </Modal.Body>
     </Modal>
   )

@@ -11,6 +11,7 @@ import Modal from "../../molecules/modal"
 import { NextSelect } from "../../molecules/select/next-select"
 import { getOptions } from "../../../domain/settings/users-roles/utils"
 import useRoles from "../../../domain/settings/users-roles/use-role"
+import usePrinters from "../../../domain/settings/printers/use-printer"
 import { UserWithRole } from "../../../types/users"
 import { Option } from "../../../types/shared"
 
@@ -25,6 +26,7 @@ type EditUserModalFormData = {
   last_name: string
   role_id: any
   region_id: any
+  default_printer_id: Option | null
 }
 
 export const defaultRole = {
@@ -53,26 +55,38 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
   const notification = useNotification()
   const { t } = useTranslation()
 
-  useEffect(() => {
-    reset(mapUser(user))
-  }, [user])
+  const {get: getRoles, setRole} = useRoles()
+  const { printers, isLoading: printersLoading, setUserDefault } = usePrinters()
 
-  const {get: getRoles, setRole} = useRoles();
-  
+  useEffect(() => {
+    reset(mapUser(user, printers))
+  }, [user, printers])
+
   const onSubmit = (data: EditUserModalFormData) => {
     const role_id = data.role_id?.value || '';
     const region_id = data.region_id?.value || '';
+    const printer_printnode_id = data.default_printer_id?.value
+      ? Number(data.default_printer_id.value)
+      : null
     delete data.role_id;
     delete data.region_id;
+    delete data.default_printer_id;
     mutate(data, {
       onSuccess: () => {
-        setRole(user.id, role_id, region_id).then(res=>{
+        const afterRole = () => {
           notification(
             t("edit-user-modal-success", "Success"),
             t("edit-user-modal-user-was-updated", "User was updated"),
             "success"
           )
           onSuccess()
+        }
+        setRole(user.id, role_id, region_id).then(() => {
+          if (printer_printnode_id !== null) {
+            setUserDefault(user.id, printer_printnode_id, afterRole)
+          } else {
+            afterRole()
+          }
         })
       },
       onError: (error) => {
@@ -110,6 +124,13 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
       })) || []
     )
   }, [regions])
+
+  const printerOptions: Option[] = useMemo(() => {
+    return printers.map((p) => ({
+      label: p.name,
+      value: String(p.printnode_id),
+    }))
+  }, [printers])
 
   // Check
 
@@ -205,6 +226,28 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
                   }}
                 />
               </div>
+              <div>
+                <Controller
+                  name="default_printer_id"
+                  control={control}
+                  render={({ field: { value, onChange, onBlur, ref } }) => {
+                    return (
+                      <NextSelect
+                        label={t("edit-user-modal-default-printer", "Default Printer (optional)")}
+                        placeholder={t("edit-user-modal-no-printer", "No default printer")}
+                        onBlur={onBlur}
+                        ref={ref}
+                        onChange={onChange}
+                        options={printerOptions}
+                        value={value}
+                        isClearable
+                        isSearchable
+                        isLoading={printersLoading}
+                      />
+                    )
+                  }}
+                />
+              </div>
             </div>
           </Modal.Content>
           <Modal.Footer>
@@ -233,12 +276,15 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
   )
 }
 
-const mapUser = (user: UserWithRole): EditUserModalFormData => {
+const mapUser = (user: UserWithRole, printers: { printnode_id: number; name: string }[] = []): EditUserModalFormData => {
+  const printerId = user.metadata?.default_printer_id
+  const match = printerId ? printers.find((p) => p.printnode_id === Number(printerId)) : null
   return {
     first_name: user.first_name,
     last_name: user.last_name,
     role_id: user.teamRole ? getOptions([user.teamRole]).pop() : '',
-    region_id: user.Region ? getOptions([user.Region]).pop() : ''
+    region_id: user.Region ? getOptions([user.Region]).pop() : '',
+    default_printer_id: match ? { label: match.name, value: String(match.printnode_id) } : null,
   }
 }
 
