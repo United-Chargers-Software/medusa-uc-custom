@@ -201,7 +201,7 @@ const CreateFulfillmentModal: React.FC<CreateFulfillmentModalProps> = ({
       } else {
         return acc;
       }
-    }, printerNodeId != null ? { printer_id: printerNodeId } : {});
+    }, printerNodeId !== undefined ? { printer_id: printerNodeId } : {});
 
     switch (type) {
       case 'swap':
