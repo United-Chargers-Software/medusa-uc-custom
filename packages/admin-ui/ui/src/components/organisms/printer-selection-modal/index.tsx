@@ -11,6 +11,8 @@ type Props = {
   onSelect: () => void
 }
 
+const NO_PRINTER = -1
+
 const PrinterSelectionModal = ({ printers, currentPrintnodeId, onSelect }: Props) => {
   const { t } = useTranslation()
   const { client } = useMedusa()
@@ -21,7 +23,8 @@ const PrinterSelectionModal = ({ printers, currentPrintnodeId, onSelect }: Props
     if (selected === null) return
     setIsLoading(true)
     try {
-      await client.admin.custom.post("admin/printer/session", { printnode_id: selected })
+      const printnode_id = selected === NO_PRINTER ? null : selected
+      await client.admin.custom.post("admin/printer/session", { printnode_id })
       onSelect()
     } catch (e) {
       console.error(e)
@@ -68,6 +71,30 @@ const PrinterSelectionModal = ({ printers, currentPrintnodeId, onSelect }: Props
                 </div>
               </label>
             ))}
+            <label
+              className={`flex cursor-pointer items-center gap-x-3 rounded-rounded border p-3 transition-colors ${
+                selected === NO_PRINTER
+                  ? "border-violet-60 bg-violet-5"
+                  : "border-grey-20 hover:border-grey-40"
+              }`}
+            >
+              <input
+                type="radio"
+                name="printer"
+                value={NO_PRINTER}
+                checked={selected === NO_PRINTER}
+                onChange={() => setSelected(NO_PRINTER)}
+                className="h-4 w-4"
+              />
+              <div>
+                <p className="inter-small-semibold">
+                  {t("printer-selection-no-printer", "No printer")}
+                </p>
+                <p className="inter-small-regular text-grey-50">
+                  {t("printer-selection-no-printer-description", "Continue without printing")}
+                </p>
+              </div>
+            </label>
           </div>
         </Modal.Content>
         <Modal.Footer>

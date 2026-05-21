@@ -259,10 +259,15 @@ const OrderDetails = () => {
 
   useEffect(() => { getPrinters() }, []);
   useEffect(() => {
-    if (effectivePrinter !== undefined) {
+    if (effectivePrinter === undefined) return;
+    const lastFulfillment = order?.fulfillments?.at(-1);
+    const lastPrinterId = lastFulfillment?.metadata?.printer_id;
+    if (lastPrinterId != null) {
+      setSelectedPrinterNodeId(Number(lastPrinterId));
+    } else {
       setSelectedPrinterNodeId(effectivePrinter?.printnode_id ?? null);
     }
-  }, [effectivePrinter]);
+  }, [effectivePrinter, order?.fulfillments]);
 
   const inventoryEnabled = useMemo(() => {
     return isFeatureEnabled('inventoryService');
