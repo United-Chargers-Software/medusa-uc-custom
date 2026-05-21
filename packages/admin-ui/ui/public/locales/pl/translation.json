@@ -1267,6 +1267,7 @@
   "templates-paid": "Zapłacono",
   "templates-awaiting-payment": "Oczekiwanie na płatność",
   "templates-payment-status-requires-action": "Wymaga działania",
+  "templates-partially-refunded": "Zwrócono częściowo",
   "draft-orders-completed": "Ukończono",
   "draft-orders-open": "Otwarte",
   "draft-orders-mark-as-paid": "Oznacz jako zapłacone",

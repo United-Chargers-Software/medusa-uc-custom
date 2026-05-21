@@ -1267,6 +1267,7 @@
   "templates-paid": "مدفوع",
   "templates-awaiting-payment": "في انتظار الدفع",
   "templates-payment-status-requires-action": "يتطلب إجراء",
+  "templates-partially-refunded": "تم استرداده جزئيًا",
   "draft-orders-completed": "مكتمل",
   "draft-orders-open": "مفتوح",
   "draft-orders-mark-as-paid": "وضع علامة كمدفوع",
