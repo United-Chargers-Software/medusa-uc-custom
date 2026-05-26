@@ -450,7 +450,10 @@ const OrderDetails = () => {
 
     const nextStatus =
       order?.fulfillment_status === 'shipped' || order?.fulfillment_status === 'fulfilled' ? 'returned' : 'canceled';
-    const showRestockingFeeText = ['us', 'ca'].includes(order?.shipping_address?.country_code?.toLowerCase() || '');
+    const countryCode = order?.shipping_address?.country_code?.toLowerCase() || '';
+    const province = order?.shipping_address?.province?.toUpperCase() || '';
+    const isCancellationFeeExempt = countryCode === 'us' && ['AK', 'HI'].includes(province);
+    const showRestockingFeeText = ['us', 'ca'].includes(countryCode) && !isCancellationFeeExempt;
     const cancelPreviewText = `New status: ${nextStatus}.${
       showRestockingFeeText ? ' Refund amount: order total - $50 (restocking fee).' : ''
     }`;
