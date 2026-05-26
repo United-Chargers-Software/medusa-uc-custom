@@ -13,6 +13,7 @@ import GaFilter from './ga-filter';
 import RefFilter from './ref-filter';
 import ClubMembershipIdFilter from './club-membership-id-filter';
 import OdooFilter from './odoo-filter';
+import SyncedWithConnectFilter from './SyncedWithConnectFilter';
 
 const REGION_PAGE_SIZE = 15;
 const CHANNEL_PAGE_SIZE = 15;
@@ -264,6 +265,11 @@ const OrderFilters = ({
           open={tempState.odoo.open}
           filter={tempState.odoo.filter}
           setFilter={val => setSingleFilter('odoo', val)}
+        />
+        <SyncedWithConnectFilter
+          open={tempState.isSyncedWithConnect.open}
+          filter={tempState.isSyncedWithConnect.filter}
+          setFilter={val => setSingleFilter('isSyncedWithConnect', val)}
         />
         <SaveFilterItem saveFilter={handleSaveTab} name={name} setName={setName} />
       </FilterDropdownContainer>

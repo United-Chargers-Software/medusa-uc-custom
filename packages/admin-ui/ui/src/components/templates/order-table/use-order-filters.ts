@@ -28,7 +28,8 @@ type OrderFilterAction =
   | { type: 'setGa'; payload: null | boolean }
   | { type: 'setRef'; payload: null | boolean }
   | { type: 'setClubMembershipId'; payload: null | string }
-  | { type: 'setOdoo'; payload: null | OdooFilterState };
+  | { type: 'setOdoo'; payload: null | OdooFilterState }
+  | { type: 'setIsSyncedWithConnect'; payload: null | boolean };
 
 interface OrderFilterState {
   query?: string | null;
@@ -76,6 +77,10 @@ interface OrderFilterState {
     open: boolean;
     filter: null | OdooFilterState;
   };
+  isSyncedWithConnect: {
+    open: boolean;
+    filter: null | boolean;
+  };
   limit: number;
   offset: number;
   additionalFilters: OrderDefaultFilters | null;
@@ -95,6 +100,7 @@ const allowedFilters = [
   'ref',
   'clubMembership',
   'odoo',
+  'isSyncedWithConnect',
 ];
 
 const DefaultTabs = {
@@ -128,7 +134,7 @@ const formatDateFilter = (filter: OrderDateFilter) => {
 const reducer = (state: OrderFilterState, action: OrderFilterAction): OrderFilterState => {
   switch (action.type) {
     case 'setFilters': {
-      const filtersChanged = 
+      const filtersChanged =
         JSON.stringify(state.region) !== JSON.stringify(action.payload.region) ||
         JSON.stringify(state.salesChannel) !== JSON.stringify(action.payload.salesChannel) ||
         JSON.stringify(state.fulfillment) !== JSON.stringify(action.payload.fulfillment) ||
@@ -140,10 +146,11 @@ const reducer = (state: OrderFilterState, action: OrderFilterAction): OrderFilte
         JSON.stringify(state.ref) !== JSON.stringify(action.payload.ref) ||
         JSON.stringify(state.clubMembershipId) !== JSON.stringify(action.payload.clubMembershipId) ||
         JSON.stringify(state.odoo) !== JSON.stringify(action.payload.odoo) ||
-        state.query !== action.payload.query;
-      
-      const offset = filtersChanged ? 0 : (action.payload.offset !== undefined ? action.payload.offset : state.offset);
-      
+        JSON.stringify(state.isSyncedWithConnect) !== JSON.stringify(action.payload.isSyncedWithConnect);
+      state.query !== action.payload.query;
+
+      const offset = filtersChanged ? 0 : action.payload.offset !== undefined ? action.payload.offset : state.offset;
+
       return {
         ...state,
         region: action.payload.region,
@@ -157,6 +164,7 @@ const reducer = (state: OrderFilterState, action: OrderFilterAction): OrderFilte
         ref: action.payload.ref,
         clubMembershipId: action.payload.clubMembershipId,
         odoo: action.payload.odoo,
+        isSyncedWithConnect: action.payload.isSyncedWithConnect,
         query: action?.payload?.query,
         offset,
       };
@@ -325,6 +333,10 @@ export const useOrderFilters = (existing?: string, defaultFilters: OrderDefaultF
           open: false,
           filter: null,
         },
+        isSyncedWithConnect: {
+          open: false,
+          filter: null,
+        },
         query: null,
       },
     });
@@ -341,7 +353,7 @@ export const useOrderFilters = (existing?: string, defaultFilters: OrderDefaultF
   const getQueryObject = () => {
     const toQuery: any = { ...state.additionalFilters };
 
-    const nullCheckFilters = ['club', 'ga', 'ref', 'clubMembershipId', 'odoo'];
+    const nullCheckFilters = ['club', 'ga', 'ref', 'clubMembershipId', 'odoo', 'isSyncedWithConnect'];
 
     for (const [key, value] of Object.entries(state)) {
       if (key === 'query') {
@@ -503,6 +515,10 @@ export const useOrderFilters = (existing?: string, defaultFilters: OrderDefaultF
           open: false,
           filter: null,
         },
+        isSyncedWithConnect: {
+          open: false,
+          filter: null,
+        },
       };
 
       for (const [filter, val] of Object.entries(tabToUse)) {
@@ -614,6 +630,7 @@ const filterStateMap: { [key: string]: string } = {
   ref: 'ref',
   clubMembership: 'clubMembershipId',
   odoo: 'odoo',
+  isSyncedWithConnect: 'isSyncedWithConnect',
 };
 
 const stateFilterMap: { [key: string]: string } = {
@@ -628,6 +645,7 @@ const stateFilterMap: { [key: string]: string } = {
   ref: 'ref',
   clubMembershipId: 'clubMembership',
   odoo: 'odoo',
+  isSyncedWithConnect: 'isSyncedWithConnect',
 };
 
 const parseQueryString = (queryString?: string, additionals: OrderDefaultFilters | null = null): OrderFilterState => {
@@ -673,6 +691,10 @@ const parseQueryString = (queryString?: string, additionals: OrderDefaultFilters
       filter: null,
     },
     odoo: {
+      open: false,
+      filter: null,
+    },
+    isSyncedWithConnect: {
       open: false,
       filter: null,
     },
@@ -806,6 +828,15 @@ const parseQueryString = (queryString?: string, additionals: OrderDefaultFilters
                   },
                 };
               }
+            }
+            break;
+          }
+          case 'isSyncedWithConnect': {
+            if (typeof value === 'string') {
+              defaultVal.isSyncedWithConnect = {
+                open: true,
+                filter: value === 'true',
+              };
             }
             break;
           }
