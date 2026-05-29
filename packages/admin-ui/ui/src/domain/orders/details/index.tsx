@@ -630,6 +630,20 @@ const OrderDetails = () => {
       });
       refetch();
       notification(t('details-success', 'Success'), t('details-serial-updated', 'Serial number updated'), 'success');
+
+      client.admin.custom
+        .post(`/admin/orders/${order.id}/reprint-label`, {})
+        .then((res: any) => {
+          if (res?.message === 'no_printer' || res?.message === 'no_label_available') return;
+          notification(t('details-success', 'Success'), t('details-label-printed', 'Label sent to printer'), 'success');
+        })
+        .catch(() => {
+          notification(
+            t('details-warning', 'Warning'),
+            t('details-reprint-failed', 'Serial saved, but label could not be printed'),
+            'warning'
+          );
+        });
     };
     const onError = (err: Error) => notification(t('details-error', 'Error'), getErrorNotificationText(err), 'error');
 
