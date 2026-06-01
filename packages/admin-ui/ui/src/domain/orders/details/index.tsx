@@ -450,7 +450,10 @@ const OrderDetails = () => {
 
     const nextStatus =
       order?.fulfillment_status === 'shipped' || order?.fulfillment_status === 'fulfilled' ? 'returned' : 'canceled';
-    const showRestockingFeeText = ['us', 'ca'].includes(order?.shipping_address?.country_code?.toLowerCase() || '');
+    const countryCode = order?.shipping_address?.country_code?.toLowerCase() || '';
+    const province = order?.shipping_address?.province?.toUpperCase() || '';
+    const isCancellationFeeExempt = countryCode === 'us' && ['AK', 'HI'].includes(province);
+    const showRestockingFeeText = ['us', 'ca'].includes(countryCode) && !isCancellationFeeExempt;
     const cancelPreviewText = `New status: ${nextStatus}.${
       showRestockingFeeText ? ' Refund amount: order total - $50 (restocking fee).' : ''
     }`;
@@ -627,6 +630,20 @@ const OrderDetails = () => {
       });
       refetch();
       notification(t('details-success', 'Success'), t('details-serial-updated', 'Serial number updated'), 'success');
+
+      client.admin.custom
+        .post(`/admin/orders/${order.id}/reprint-label`, {})
+        .then((res: any) => {
+          if (res?.message === 'no_printer' || res?.message === 'no_label_available') return;
+          notification(t('details-success', 'Success'), t('details-label-printed', 'Label sent to printer'), 'success');
+        })
+        .catch(() => {
+          notification(
+            t('details-warning', 'Warning'),
+            t('details-reprint-failed', 'Serial saved, but label could not be printed'),
+            'warning'
+          );
+        });
     };
     const onError = (err: Error) => notification(t('details-error', 'Error'), getErrorNotificationText(err), 'error');
 
