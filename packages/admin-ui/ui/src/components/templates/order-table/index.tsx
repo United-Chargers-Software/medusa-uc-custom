@@ -82,6 +82,7 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
     ref: filters.ref?.open ? filters.ref.filter : null,
     clubMembership: filters.clubMembershipId?.open ? filters.clubMembershipId.filter : null,
     odoo: filters.odoo?.open ? filters.odoo.filter : null,
+    isSyncedWithConnect: filters.isSyncedWithConnect?.open ? filters.isSyncedWithConnect.filter : null,
     created_at: queryObject.created_at,
   });
 
@@ -115,9 +116,9 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
     const currentFiltersForComparison = { ...representationObject };
     delete currentFiltersForComparison.offset;
     delete currentFiltersForComparison.limit;
-    
+
     const currentFiltersString = JSON.stringify(currentFiltersForComparison);
-    
+
     if (prevFiltersRef.current && prevFiltersRef.current !== currentFiltersString) {
       const currentOffset = parseInt(queryObject.offset) || 0;
       if (currentOffset > 0) {
@@ -125,7 +126,7 @@ const OrderTable = ({ setContextFilters }: OrderTableProps) => {
         paginate(0, 'goToPage');
       }
     }
-    
+
     prevFiltersRef.current = currentFiltersString;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [representationObject]);

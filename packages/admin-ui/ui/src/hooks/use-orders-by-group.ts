@@ -36,6 +36,7 @@ type useOrdersByGroupProps = {
   ref?: boolean | null;
   clubMembership?: string | null;
   odoo?: OdooFilterState | null;
+  isSyncedWithConnect?: boolean | null;
   created_at?: {
     lt?: string;
     gt?: string;
@@ -64,6 +65,7 @@ const useOrdersByGroup = ({
   ref,
   clubMembership,
   odoo,
+  isSyncedWithConnect,
   created_at,
 }: useOrdersByGroupProps) => {
   const [ordersData, setOrdersData] = useState<useOrdersByGroupReturn>({
@@ -91,6 +93,7 @@ const useOrdersByGroup = ({
         ref,
         clubMembership,
         odoo,
+        isSyncedWithConnect,
         created_at,
       });
 
@@ -126,6 +129,7 @@ const useOrdersByGroup = ({
     ref,
     clubMembership,
     odoo,
+    isSyncedWithConnect,
     created_at,
   ]);
 
