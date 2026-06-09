@@ -19,6 +19,7 @@ import {
   OrderStatusComponent,
   PaymentActionables,
   PaymentStatusComponent,
+  RefundDepositButton,
 } from './templates';
 
 import { capitalize, update } from 'lodash';
@@ -916,6 +917,7 @@ const OrderDetails = () => {
                   status={<PaymentStatusComponent status={order.payment_status} />}
                   customActionable={
                     <div className="flex items-center gap-2">
+                      <RefundDepositButton order={order} />
                       <PaymentActionables
                         order={order}
                         capturePayment={capturePayment}
