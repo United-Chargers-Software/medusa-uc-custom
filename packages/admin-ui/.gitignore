@@ -2,3 +2,6 @@
 .vercel
 /ui/preview
 /ui/src/extensions
+
+# Local Claude Code instructions (machine-specific, not for version control)
+**/.claude/CLAUDE.md
