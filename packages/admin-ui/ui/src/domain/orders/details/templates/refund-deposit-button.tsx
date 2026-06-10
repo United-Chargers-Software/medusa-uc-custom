@@ -31,9 +31,10 @@ type RefundDepositButtonProps = {
     metadata?: Record<string, unknown> | null;
     refunds?: Refund[];
   };
+  refetchOrder: () => void;
 };
 
-export const RefundDepositButton = ({ order }: RefundDepositButtonProps) => {
+export const RefundDepositButton = ({ order, refetchOrder }: RefundDepositButtonProps) => {
   const { client } = useMedusa();
   const notification = useNotification();
   const [isLoading, setIsLoading] = useState(false);
@@ -58,6 +59,7 @@ export const RefundDepositButton = ({ order }: RefundDepositButtonProps) => {
         station_serial_number,
       });
       notification('Success', 'Deposit refund processed successfully', 'success');
+      await refetchOrder();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Something went wrong, please try again.';
       notification('Error', message, 'error');
