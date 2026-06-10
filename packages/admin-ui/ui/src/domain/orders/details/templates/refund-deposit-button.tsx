@@ -2,6 +2,7 @@ import { LineItem, Refund } from '@medusajs/medusa';
 import { useMedusa } from 'medusa-react';
 import { useState } from 'react';
 import Button from '../../../../components/fundamentals/button';
+import useImperativeDialog from '../../../../hooks/use-imperative-dialog';
 import useNotification from '../../../../hooks/use-notification';
 import { isClubStationItem } from '../create-fulfillment/item-table';
 
@@ -36,6 +37,7 @@ type RefundDepositButtonProps = {
 
 export const RefundDepositButton = ({ order, refetchOrder }: RefundDepositButtonProps) => {
   const { client } = useMedusa();
+  const dialog = useImperativeDialog();
   const notification = useNotification();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -47,6 +49,15 @@ export const RefundDepositButton = ({ order, refetchOrder }: RefundDepositButton
   if (!membershipId || !hasClubItem || depositRefunded) return null;
 
   const handleClick = async () => {
+    const confirmed = await dialog({
+      heading: 'Refund deposit',
+      text: `Are you sure you want to refund the deposit for order #${order.display_id}? This action cannot be undone.`,
+      confirmText: 'Yes, confirm',
+      cancelText: 'Cancel',
+    });
+
+    if (!confirmed) return;
+
     const rawSerials = order.cart?.context?.metadata?.stationSerialNumber;
     const clubItem = order.items.find(item => isClubStationItem(item));
     const station_serial_number = extractClubStationSerial(rawSerials, clubItem?.id);
