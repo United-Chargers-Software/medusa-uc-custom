@@ -4,10 +4,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Rules
-
-Read and strictly follow `/Users/john/rules.md` before any task. It is non-negotiable.
-
 ## Package overview
 
 `@medusajs/admin-ui` is a United Chargers fork of the upstream Medusa JS admin UI. It is consumed by the `@medusajs/admin` plugin, which embeds this SPA into the Medusa backend server. Do not install or use this package standalone.
