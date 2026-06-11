@@ -4,6 +4,7 @@ import {
   useAdminCancelSwapFulfillment,
   useMedusa,
 } from "medusa-react"
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import Button from "../../../../components/fundamentals/button"
 import IconBadge from "../../../../components/fundamentals/icon-badge"
@@ -27,6 +28,7 @@ export const FormattedFulfillment = ({
   const notification = useNotification()
   const { t } = useTranslation()
   const { client } = useMedusa()
+  const [isReprintLoading, setIsReprintLoading] = useState(false)
 
   const cancelFulfillment = useAdminCancelFulfillment(order.id)
   const cancelSwapFulfillment = useAdminCancelSwapFulfillment(order.id)
@@ -133,6 +135,7 @@ export const FormattedFulfillment = ({
   }
 
   const handleReprintLabel = () => {
+    setIsReprintLoading(true)
     client.admin.custom
       .post(`/admin/orders/${order?.id}/fill-tracking-link`, {})
       .then(() => {
@@ -140,6 +143,9 @@ export const FormattedFulfillment = ({
       })
       .catch(() => {
         notification(t("templates-error", "Error"), "Failed to reprint label", "error")
+      })
+      .finally(() => {
+        setIsReprintLoading(false)
       })
   }
 
@@ -288,6 +294,7 @@ export const FormattedFulfillment = ({
         <Button
           variant="secondary"
           size="small"
+          loading={isReprintLoading}
           onClick={handleReprintLabel}
         >
           Reprint Label
