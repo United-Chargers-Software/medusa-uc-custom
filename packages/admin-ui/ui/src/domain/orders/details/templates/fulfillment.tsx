@@ -2,8 +2,11 @@ import {
   useAdminCancelClaimFulfillment,
   useAdminCancelFulfillment,
   useAdminCancelSwapFulfillment,
+  useMedusa,
 } from "medusa-react"
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
+import Button from "../../../../components/fundamentals/button"
 import IconBadge from "../../../../components/fundamentals/icon-badge"
 import BuildingsIcon from "../../../../components/fundamentals/icons/buildings-icon"
 import CancelIcon from "../../../../components/fundamentals/icons/cancel-icon"
@@ -24,6 +27,8 @@ export const FormattedFulfillment = ({
   const dialog = useImperativeDialog()
   const notification = useNotification()
   const { t } = useTranslation()
+  const { client } = useMedusa()
+  const [isReprintLoading, setIsReprintLoading] = useState(false)
 
   const cancelFulfillment = useAdminCancelFulfillment(order.id)
   const cancelSwapFulfillment = useAdminCancelSwapFulfillment(order.id)
@@ -127,6 +132,21 @@ export const FormattedFulfillment = ({
       default:
         return { resourceId: order?.id, resourceType: "order" }
     }
+  }
+
+  const handleReprintLabel = () => {
+    setIsReprintLoading(true)
+    client.admin.custom
+      .post(`/admin/orders/${order?.id}/fill-tracking-link`, {})
+      .then(() => {
+        notification(t("templates-success", "Success"), "Label sent to printer", "success")
+      })
+      .catch(() => {
+        notification(t("templates-error", "Error"), "Failed to reprint label", "error")
+      })
+      .finally(() => {
+        setIsReprintLoading(false)
+      })
   }
 
   const handleCancelFulfillment = async () => {
@@ -270,10 +290,18 @@ export const FormattedFulfillment = ({
           </div>
         )}
       </div>
-      {!fulfillment.canceled_at &&
-        !fulfillment.shipped_at &&
-        !hasFallbackTrackingNumbers && (
-        <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2">
+        <Button
+          variant="secondary"
+          size="small"
+          loading={isReprintLoading}
+          onClick={handleReprintLabel}
+        >
+          Reprint Label
+        </Button>
+        {!fulfillment.canceled_at &&
+          !fulfillment.shipped_at &&
+          !hasFallbackTrackingNumbers && (
           <Actionables
             actions={[
               {
@@ -288,8 +316,8 @@ export const FormattedFulfillment = ({
               },
             ]}
           />
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
