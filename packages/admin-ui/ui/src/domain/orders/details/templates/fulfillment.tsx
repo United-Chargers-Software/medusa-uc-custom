@@ -59,7 +59,6 @@ export const FormattedFulfillment = ({
     if (raw.startsWith("data:application/pdf;base64,")) {
       return raw
     }
-
     // Some providers store only the base64 payload (without data URI prefix).
     if (raw.startsWith("JVBER")) {
       return `data:application/pdf;base64,${raw}`
