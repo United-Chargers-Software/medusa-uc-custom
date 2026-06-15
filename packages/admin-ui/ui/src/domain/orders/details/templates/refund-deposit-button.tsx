@@ -31,6 +31,7 @@ type RefundDepositButtonProps = {
     cart?: { context?: CartContext } | null;
     metadata?: Record<string, unknown> | null;
     refunds?: Refund[];
+    fulfillments?: unknown[];
   };
   refetchOrder: () => void;
 };
@@ -45,8 +46,14 @@ export const RefundDepositButton = ({ order, refetchOrder }: RefundDepositButton
   const membershipId = membership.split('-')[0] ?? membership;
   const hasClubItem = order.items.some(item => isClubStationItem(item));
   const depositRefunded = order.refunds && order.refunds.length > 0;
+  const hasFulfillments = Array.isArray(order.fulfillments) && order.fulfillments.length > 0;
+  const stationSerialNumber = order.cart?.context?.metadata?.stationSerialNumber;
+  const hasStationSerial =
+    typeof stationSerialNumber === 'object' &&
+    stationSerialNumber !== null &&
+    Object.keys(stationSerialNumber).length > 0;
 
-  if (!membershipId || !hasClubItem || depositRefunded) return null;
+  if (!membershipId || !hasClubItem || depositRefunded || !hasFulfillments || !hasStationSerial) return null;
 
   const handleClick = async () => {
     const confirmed = await dialog({
