@@ -4,7 +4,7 @@ type TProps = {
     tracking_number: string
     fulfillment_id: string
     idempotency_key: string
-    metadata: Record<string, string>
+    metadata: Record<string, unknown>
   }
 }
 

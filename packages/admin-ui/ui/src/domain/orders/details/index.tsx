@@ -85,7 +85,7 @@ import useChangeStatus from './hooks/useChangeStatus';
 import useOrdersExpandParam from './utils/use-admin-expand-paramter';
 import { FulfilmentStatuses, PaymentStatuses } from '../../../types/utils';
 
-type OrderDetailFulfillment = {
+export type OrderDetailFulfillment = {
   title: string;
   type: string;
   fulfillment: Fulfillment;
@@ -1168,6 +1168,7 @@ const OrderDetails = () => {
                           order={order}
                           fulfillmentObj={fulfillmentObj}
                           setFullfilmentToShip={setFullfilmentToShip}
+                          printerNodeId={selectedPrinterNodeId}
                         />
                       ))}
                     </div>

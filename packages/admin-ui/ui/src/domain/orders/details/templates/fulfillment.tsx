@@ -1,3 +1,4 @@
+import { Fulfillment, Order } from "@medusajs/medusa"
 import {
   useAdminCancelClaimFulfillment,
   useAdminCancelFulfillment,
@@ -6,6 +7,7 @@ import {
 } from "medusa-react"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
+import { OrderDetailFulfillment } from "../index"
 import Button from "../../../../components/fundamentals/button"
 import IconBadge from "../../../../components/fundamentals/icon-badge"
 import BuildingsIcon from "../../../../components/fundamentals/icons/buildings-icon"
@@ -23,6 +25,12 @@ export const FormattedFulfillment = ({
   setFullfilmentToShip,
   order,
   fulfillmentObj,
+  printerNodeId,
+}: {
+  setFullfilmentToShip: (fulfillment: Fulfillment) => void
+  order: Order
+  fulfillmentObj: OrderDetailFulfillment
+  printerNodeId?: number | null
 }) => {
   const dialog = useImperativeDialog()
   const notification = useNotification()
@@ -136,7 +144,9 @@ export const FormattedFulfillment = ({
   const handleReprintLabel = () => {
     setIsReprintLoading(true)
     client.admin.custom
-      .post(`/admin/orders/${order?.id}/fill-tracking-link`, {})
+      .post(`/admin/orders/${order?.id}/fill-tracking-link`, {
+        printer_id: printerNodeId ?? null,
+      })
       .then(() => {
         notification(t("templates-success", "Success"), "Label sent to printer", "success")
       })
