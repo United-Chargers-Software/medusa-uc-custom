@@ -917,7 +917,7 @@ const OrderDetails = () => {
                   status={<PaymentStatusComponent status={order.payment_status} />}
                   customActionable={
                     <div className="flex items-center gap-2">
-                      <RefundDepositButton order={order} refetchOrder={refetch} />
+                      {/* <RefundDepositButton order={order} refetchOrder={refetch} /> */}
                       <PaymentActionables
                         order={order}
                         capturePayment={capturePayment}
