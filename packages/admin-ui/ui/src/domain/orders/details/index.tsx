@@ -86,7 +86,7 @@ import useChangeStatus from './hooks/useChangeStatus';
 import useOrdersExpandParam from './utils/use-admin-expand-paramter';
 import { FulfilmentStatuses, PaymentStatuses } from '../../../types/utils';
 
-type OrderDetailFulfillment = {
+export type OrderDetailFulfillment = {
   title: string;
   type: string;
   fulfillment: Fulfillment;
@@ -451,13 +451,27 @@ const OrderDetails = () => {
 
     const nextStatus =
       order?.fulfillment_status === 'shipped' || order?.fulfillment_status === 'fulfilled' ? 'returned' : 'canceled';
-    const countryCode = order?.shipping_address?.country_code?.toLowerCase() || '';
-    const province = order?.shipping_address?.province?.toUpperCase() || '';
-    const isCancellationFeeExempt = countryCode === 'us' && ['AK', 'HI'].includes(province);
-    const showRestockingFeeText = ['us', 'ca'].includes(countryCode) && !isCancellationFeeExempt;
-    const cancelPreviewText = `New status: ${nextStatus}.${
-      showRestockingFeeText ? ' Refund amount: order total - $50 (restocking fee).' : ''
-    }`;
+
+    type CancelFeeResponse = {
+      cancellation_fee_usd_cents: number;
+      fee_type: 'flat' | 'percentage_25' | 'none';
+      order_total_cents: number;
+      is_late: boolean;
+    };
+
+    let cancelPreviewText = `New status: ${nextStatus}.`;
+    try {
+      const feeRes = await client.admin.custom.get(`/orders/cancel-fee/${order?.id}`) as CancelFeeResponse;
+      if (feeRes.fee_type === 'flat') {
+        const feeUsd = (feeRes.cancellation_fee_usd_cents / 100).toFixed(2);
+        cancelPreviewText += ` A $${feeUsd} cancellation fee will be charged.`;
+      } else if (feeRes.fee_type === 'percentage_25') {
+        const feeUsd = (feeRes.cancellation_fee_usd_cents / 100).toFixed(2);
+        cancelPreviewText += ` A 25% restocking fee ($${feeUsd}) will be deducted from the refund.`;
+      }
+    } catch {
+      // non-critical — show dialog without fee preview
+    }
 
     const shouldDelete = await dialog({
       heading: t('details-cancel-order-heading', 'Cancel order'),
@@ -1170,6 +1184,7 @@ const OrderDetails = () => {
                           order={order}
                           fulfillmentObj={fulfillmentObj}
                           setFullfilmentToShip={setFullfilmentToShip}
+                          printerNodeId={selectedPrinterNodeId}
                         />
                       ))}
                     </div>
