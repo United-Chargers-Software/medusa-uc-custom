@@ -297,6 +297,12 @@ const parseDateFilter = (filter) => {
         value: moment.unix(startDate).toDate(),
       }
     }
+
+    return {
+      filterType: DateFilters.Between,
+      value: moment.unix(startDate).toDate(),
+      endValue: moment.unix(endDate).toDate(),
+    }
   }
 
   if (flags.sawLt) {
@@ -330,6 +336,7 @@ const DateFilter = ({
     return {
       filterType: options[0],
       value: null,
+      endValue: null,
       relativeAmount: undefined,
       daysMonthsValue: "days",
       ...parsed,
@@ -344,6 +351,7 @@ const DateFilter = ({
     initialVals.daysMonthsValue
   )
   const [startDate, setStartDate] = useState(initialVals.value)
+  const [endDate, setEndDate] = useState(initialVals.endValue)
 
   useEffect(() => {
     switch (currentFilter) {
@@ -354,6 +362,7 @@ const DateFilter = ({
           filter: handleDateFormat(relativeAmount),
         })
         break
+      case DateFilters.Between:
       case DateFilters.EqualTo:
         setFilter({
           open: true,
@@ -366,7 +375,7 @@ const DateFilter = ({
           filter: handleDateFormat(startDate),
         })
     }
-  }, [currentFilter, relativeAmount, daysMonthsValue, startDate])
+  }, [currentFilter, relativeAmount, daysMonthsValue, startDate, endDate])
 
   const handleDateFormat = (value: string | null) => {
     switch (currentFilter) {
@@ -388,6 +397,19 @@ const DateFilter = ({
             addHours(momentToSet, 24).toDate()
           )
           return { gt: day, lt: nextDay }
+        } else {
+          return {}
+        }
+      }
+
+      case DateFilters.Between: {
+        const momentStart = atMidnight(value)
+        const momentEnd = atMidnight(endDate)
+        if (momentStart && momentEnd) {
+          return {
+            gt: dateToUnixTimestamp(momentStart.toDate()),
+            lt: dateToUnixTimestamp(addHours(momentEnd, 24).toDate()),
+          }
         } else {
           return {}
         }
@@ -446,6 +468,45 @@ const DateFilter = ({
                 options={["days", "months"]}
                 onClick={setDaysMonthsValue}
                 selectedItem={daysMonthsValue}
+              />
+            </RightPopover>
+          </div>
+        )
+      case DateFilters.Between:
+        return (
+          <div className="flex w-full flex-col gap-1">
+            <RightPopover
+              trigger={
+                <div className="bg-grey-5 border-grey-20 inter-small-semibold text-grey-90 flex w-full items-center justify-between rounded border px-3 py-1.5">
+                  <label>
+                    {startDate ? moment(startDate).format("MM.DD.YYYY") : "Start date"}
+                  </label>
+                  <span className="text-grey-50">
+                    <ArrowRightIcon size={16} />
+                  </span>
+                </div>
+              }
+            >
+              <CalendarComponent
+                date={startDate}
+                onChange={(date) => setStartDate(date)}
+              />
+            </RightPopover>
+            <RightPopover
+              trigger={
+                <div className="bg-grey-5 border-grey-20 inter-small-semibold text-grey-90 flex w-full items-center justify-between rounded border px-3 py-1.5">
+                  <label>
+                    {endDate ? moment(endDate).format("MM.DD.YYYY") : "End date"}
+                  </label>
+                  <span className="text-grey-50">
+                    <ArrowRightIcon size={16} />
+                  </span>
+                </div>
+              }
+            >
+              <CalendarComponent
+                date={endDate}
+                onChange={(date) => setEndDate(date)}
               />
             </RightPopover>
           </div>
