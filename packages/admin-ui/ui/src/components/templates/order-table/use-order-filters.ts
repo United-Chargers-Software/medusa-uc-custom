@@ -9,7 +9,7 @@ type OrderDateFilter = null | {
   lt?: string;
 };
 
-type OdooFilterState = {
+export type OdooFilterState = {
   salesOrder: boolean;
   deliveryOrder: boolean;
 };
@@ -31,7 +31,7 @@ type OrderFilterAction =
   | { type: 'setOdoo'; payload: null | OdooFilterState }
   | { type: 'setIsSyncedWithConnect'; payload: null | boolean };
 
-interface OrderFilterState {
+export interface OrderFilterState {
   query?: string | null;
   region: {
     open: boolean;
@@ -114,7 +114,7 @@ const DefaultTabs = {
   },
 };
 
-const formatDateFilter = (filter: OrderDateFilter) => {
+export const formatDateFilter = (filter: OrderDateFilter) => {
   if (filter === null) {
     return filter;
   }
