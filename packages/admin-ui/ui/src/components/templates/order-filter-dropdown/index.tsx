@@ -40,7 +40,7 @@ const fulfillmentFilters = [
   'canceled',
 ];
 
-const dateFilters = ['is in the last', 'is older than', 'is after', 'is before', 'is equal to'];
+const dateFilters = ['is in the last', 'is older than', 'is between', 'is after', 'is before', 'is equal to'];
 
 const OrderFilters = ({
   tabs,
