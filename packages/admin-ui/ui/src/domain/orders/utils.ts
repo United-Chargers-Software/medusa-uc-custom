@@ -1,54 +1,52 @@
-import { formatDateFilter, OdooFilterState, OrderFilterState } from '../../components/templates/order-table/use-order-filters'
-
-type ExportFilterableFields = {
-  fulfillment_status?: string | string[] | null
-  payment_status?: string | string[] | null
-  region_id?: string | string[] | null
-  status?: string | string[] | null
-  created_at?: Record<string, string>
-  sales_channel_id?: string | string[] | null
-  club?: boolean | null
-  ga?: boolean | null
-  ref?: boolean | null
-  clubMembership?: string | null
-  odoo?: OdooFilterState | null
-  isSyncedWithConnect?: boolean | null
-}
+import { relativeDateFormatToTimestamp } from '../../utils/time'
 
 /**
  * Transform filters widget data shape to order export strategy context object.
  */
-export function transformFiltersAsExportContext(filters: OrderFilterState) {
-  const context = {
-    filterable_fields: {
-      fulfillment_status: filters.fulfillment?.filter,
-      payment_status: filters.payment?.filter,
-      region_id: filters.region?.filter,
-      status: filters.status?.filter,
-      created_at: (() => {
-        const formatted = formatDateFilter(filters.date?.filter ?? null)
-        if (!formatted) return undefined
-        return Object.entries(formatted).reduce((prev: Record<string, string>, [k, v]) => {
-          const ms = Number(v) * 1000
-          if (!isNaN(ms)) prev[k] = new Date(ms).toISOString()
-          return prev
-        }, {})
-      })(),
-      sales_channel_id: filters.salesChannel?.filter,
-      club: filters.club?.filter,
-      ga: filters.ga?.filter,
-      ref: filters.ref?.filter,
-      clubMembership: filters.clubMembershipId?.filter,
-      odoo: filters.odoo?.filter,
-      isSyncedWithConnect: filters.isSyncedWithConnect?.filter,
-    } as ExportFilterableFields,
+export function transformFiltersAsExportContext(
+  filters: Record<string, { filter: unknown; open?: boolean } | undefined>
+) {
+  const filterable_fields: Record<string, unknown> = {
+    fulfillment_status: filters.fulfillment?.filter,
+    payment_status: filters.payment?.filter,
+    region_id: filters.region?.filter,
+    status: filters.status?.filter,
+    created_at: Object.keys(filters.date?.filter || {}).reduce((prev: Record<string, string>, k) => {
+      const raw = (filters.date?.filter as Record<string, string>)[k]
+      const timestamp = typeof raw === 'string' && raw.includes('|')
+        ? relativeDateFormatToTimestamp(raw)
+        : raw
+      prev[k] = new Date(Number(timestamp) * 1000).toISOString()
+      return prev
+    }, {}),
   }
 
-  const fields = context.filterable_fields as Record<string, unknown>
-  for (const k in fields) {
-    const val = fields[k]
-    if (val === null || val === undefined || (Array.isArray(val) && val.length === 0)) {
-      delete fields[k]
+  // Custom filters — passed as-is to the export strategy's queryMatchingOrderIds
+  if (filters.club?.open && filters.club.filter !== null) {
+    filterable_fields.club = filters.club.filter
+  }
+  if (filters.ga?.open && filters.ga.filter !== null) {
+    filterable_fields.ga = filters.ga.filter
+  }
+  if (filters.ref?.open && filters.ref.filter !== null) {
+    filterable_fields.ref = filters.ref.filter
+  }
+  if (filters.isSyncedWithConnect?.open && filters.isSyncedWithConnect.filter !== null) {
+    filterable_fields.isSyncedWithConnect = filters.isSyncedWithConnect.filter
+  }
+  if (filters.clubMembershipId?.open && filters.clubMembershipId.filter !== null) {
+    filterable_fields.clubMembership = filters.clubMembershipId.filter
+  }
+  if (filters.odoo?.open && filters.odoo.filter !== null) {
+    filterable_fields.odoo = filters.odoo.filter
+  }
+
+  const context = { filterable_fields }
+
+  for (const k in context.filterable_fields) {
+    const v = context.filterable_fields[k]
+    if (v === null || (Array.isArray(v) && v.length === 0) || (typeof v === 'object' && v !== null && Object.keys(v).length === 0)) {
+      delete context.filterable_fields[k]
     }
   }
 
