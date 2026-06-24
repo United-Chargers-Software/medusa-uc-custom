@@ -301,7 +301,9 @@ const parseDateFilter = (filter) => {
     return {
       filterType: DateFilters.Between,
       value: moment.unix(startDate).toDate(),
-      endValue: moment.unix(endDate).toDate(),
+      // endDate was stored as lt = userEndDate + 24h (to include the full end day).
+      // Subtract it back so the UI shows the user's original end date, not +1 day.
+      endValue: moment.unix(endDate).subtract(1, 'day').toDate(),
     }
   }
 
