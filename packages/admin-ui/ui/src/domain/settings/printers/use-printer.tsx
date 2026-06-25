@@ -7,18 +7,22 @@ export type PrinterType = {
   name: string
   description: string | null
   is_active: boolean
+  printnode_options: Record<string, unknown> | null
 }
 
 export type CreatePrinterData = {
   printnode_id: number
   name: string
   description?: string
+  printnode_options?: Record<string, unknown> | null
 }
 
 export type UpdatePrinterData = {
+  printnode_id?: number
   name?: string
   description?: string
   is_active?: boolean
+  printnode_options?: Record<string, unknown> | null
 }
 
 const usePrinters = () => {
