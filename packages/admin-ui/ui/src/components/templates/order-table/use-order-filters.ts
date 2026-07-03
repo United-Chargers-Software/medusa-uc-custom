@@ -88,7 +88,7 @@ export interface OrderFilterState {
 
 const allowedFilters = [
   'status',
-  'region',
+  'region_id',
   'fulfillment_status',
   'payment_status',
   'created_at',
