@@ -241,6 +241,17 @@ const OrderDetails = () => {
   const [showRefund, setShowRefund] = useState(false);
   const [fullfilmentToShip, setFullfilmentToShip] = useState(null);
 
+  type AdminCancellationFeeType = 'flat_50' | 'percentage_25' | 'none';
+  type FeeTypeOption = { enabled: boolean; fee_usd_cents: number; reason: string | null };
+  type CancelFeeResponse = {
+    fee_types: Record<AdminCancellationFeeType, FeeTypeOption>;
+    order_total_cents: number;
+    hours_since_order: number;
+    is_late: boolean;
+  };
+  const [cancelFeeOptions, setCancelFeeOptions] = useState<CancelFeeResponse | null>(null);
+  const [isCancellingOrder, setIsCancellingOrder] = useState(false);
+
   const { orderRelations } = useOrdersExpandParam();
   const { order, isLoading, refetch } = useAdminOrder(id!, { expand: orderRelations });
 
@@ -430,12 +441,8 @@ const OrderDetails = () => {
     }
   };
 
-  const handleDeleteOrder = async () => {
-    type CancelIntegrationError = {
-      integration?: string;
-      error?: string;
-    };
-
+  const handleCancelOrder = async (feeType: AdminCancellationFeeType) => {
+    type CancelIntegrationError = { integration?: string; error?: string };
     type CancelOrderResponse = {
       message?: string;
       has_integration_errors?: boolean;
@@ -452,25 +459,25 @@ const OrderDetails = () => {
     const nextStatus =
       order?.fulfillment_status === 'shipped' || order?.fulfillment_status === 'fulfilled' ? 'returned' : 'canceled';
 
-    type CancelFeeResponse = {
-      cancellation_fee_usd_cents: number;
-      fee_type: 'flat' | 'percentage_25' | 'none';
-      order_total_cents: number;
-      is_late: boolean;
-    };
+    let feeOption: FeeTypeOption | undefined = cancelFeeOptions?.fee_types?.[feeType];
+    if (!feeOption) {
+      try {
+        const freshFeeRes = await client.admin.custom.get(`/orders/cancel-fee/${order?.id}`);
+        const typedRes = freshFeeRes as CancelFeeResponse;
+        setCancelFeeOptions(typedRes);
+        feeOption = typedRes?.fee_types?.[feeType];
+      } catch (err) {
+        console.error('[cancel-fee] fetch failed:', err);
+      }
+    }
 
     let cancelPreviewText = `New status: ${nextStatus}.`;
-    try {
-      const feeRes = await client.admin.custom.get(`/orders/cancel-fee/${order?.id}`) as CancelFeeResponse;
-      if (feeRes.fee_type === 'flat') {
-        const feeUsd = (feeRes.cancellation_fee_usd_cents / 100).toFixed(2);
-        cancelPreviewText += ` A $${feeUsd} cancellation fee will be charged.`;
-      } else if (feeRes.fee_type === 'percentage_25') {
-        const feeUsd = (feeRes.cancellation_fee_usd_cents / 100).toFixed(2);
-        cancelPreviewText += ` A 25% restocking fee ($${feeUsd}) will be deducted from the refund.`;
-      }
-    } catch {
-      // non-critical — show dialog without fee preview
+    if (feeType === 'flat_50' && feeOption) {
+      const feeFormatted = formatAmountWithSymbol({ amount: feeOption.fee_usd_cents, currency: order?.currency_code ?? 'usd' });
+      cancelPreviewText += ` A ${feeFormatted} cancellation fee will be charged.`;
+    } else if (feeType === 'percentage_25' && feeOption) {
+      const feeFormatted = formatAmountWithSymbol({ amount: feeOption.fee_usd_cents, currency: order?.currency_code ?? 'usd' });
+      cancelPreviewText += ` A 25% restocking fee (${feeFormatted}) will be deducted from the refund.`;
     }
 
     const shouldDelete = await dialog({
@@ -480,28 +487,23 @@ const OrderDetails = () => {
         'Are you sure you want to cancel the order?',
       )}`,
       extraConfirmation: false,
-      // entityName: t('order-details-display-id', 'order #{{display_id}}', {
-      //   display_id: order.display_id,
-      // }),
     });
 
     if (!shouldDelete) {
       return;
     }
 
+    setIsCancellingOrder(true);
     return client.admin.custom
-      .post(`/orders/cancel-custom/${order?.id}`, {})
+      .post(`/orders/cancel-custom/${order?.id}`, { fee_type: feeType })
       .then((responseBody: CancelOrderResponse) => {
-
         client.admin.custom.post(`admin/cancel-order-custom/${order?.id}`, {
           metadata: {
-            order_canceled_by: {
-              email: userEmail,
-              name: userName,
-            },
+            order_canceled_by: { email: userEmail, name: userName },
           },
         });
 
+        setIsCancellingOrder(false);
         notification(
           responseBody?.has_integration_errors ? t('details-error', 'Error') : t('details-success', 'Success'),
           responseBody?.has_integration_errors
@@ -514,27 +516,17 @@ const OrderDetails = () => {
         if (responseBody?.has_integration_errors) {
           const details =
             responseBody.integration_errors
-              ?.map(item => {
-                const source = item.integration || 'integration';
-                const reason = item.error || 'Unknown error';
-                return `${source}: ${reason}`;
-              })
+              ?.map(item => `${item.integration || 'integration'}: ${item.error || 'Unknown error'}`)
               .join('; ') || 'Unknown integration error';
-
-          notification(
-            t('details-error', 'Error'),
-            `Cancellation completed with integration errors: ${details}`,
-            'error',
-            { duration: Infinity },
-          );
+          notification(t('details-error', 'Error'), `Cancellation completed with integration errors: ${details}`, 'error', { duration: Infinity });
         }
 
         refetch();
       })
       .catch(err => {
+        setIsCancellingOrder(false);
         const backendMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-        const errorText = backendMessage ? `Cancel failed: ${backendMessage}` : 'Cancel failed';
-        notification(t('details-error', 'Error'), errorText, 'error', { duration: Infinity });
+        notification(t('details-error', 'Error'), backendMessage ? `Cancel failed: ${backendMessage}` : 'Cancel failed', 'error', { duration: Infinity });
       });
   };
 
@@ -774,6 +766,16 @@ const OrderDetails = () => {
     });
   }
 
+  const cancellation = (order?.metadata as { cancellation?: Record<string, unknown> } | undefined)?.cancellation;
+  const hasCancellation = !!cancellation;
+
+  useEffect(() => {
+    if (!order?.id || !isSuperAdmin || hasCancellation) return;
+    client.admin.custom.get(`/orders/cancel-fee/${order.id}`)
+      .then(res => setCancelFeeOptions(res as CancelFeeResponse))
+      .catch(() => {});
+  }, [order?.id, isSuperAdmin, hasCancellation]);
+
   if (!order && isLoading) {
     return (
       <div className="flex h-full w-full items-center justify-center">
@@ -791,9 +793,8 @@ const OrderDetails = () => {
       ? item.quantity - (item.fulfilled_quantity ?? 0) - item.returned_quantity > 0
       : item.quantity > (item.fulfilled_quantity ?? 0),
   );
-  const cancellation = (order?.metadata as { cancellation?: Record<string, unknown> } | undefined)?.cancellation;
   const isOrderCanceled = order?.status === 'canceled' || !!cancellation;
-  const hasCancellation = !!cancellation;
+
   const isCreateFulfillmentDisabled =
     order?.payment_status === 'refunded' ||
     !anyItemsToFulfil ||
@@ -874,15 +875,44 @@ const OrderDetails = () => {
                   subtitle={moment(order.created_at).format('D MMMM YYYY hh:mm a')}
                   status={<OrderStatusComponent status={isOrderCanceled ? 'canceled' : order?.status} />}
                   customActionable={
-                    <Button
-                      variant="secondary"
-                      size="small"
-                      disabled={hasCancellation || !isSuperAdmin}
-                      onClick={() => handleDeleteOrder()}
-                    >
-                      <CancelIcon size={20} />
-                      {t('details-cancel-order', 'Cancel Order')}
-                    </Button>
+                    !hasCancellation && isSuperAdmin && (
+                      <Actionables
+                        customTrigger={
+                          isCancellingOrder ? (
+                            <button
+                              disabled
+                              className="w-xlarge h-xlarge flex items-center justify-center rounded focus:outline-none"
+                            >
+                              <Spinner size="small" variant="secondary" />
+                            </button>
+                          ) : undefined
+                        }
+                        actions={[
+                          {
+                            label: cancelFeeOptions?.fee_types?.flat_50
+                              ? `Cancel — ${formatAmountWithSymbol({ amount: cancelFeeOptions.fee_types.flat_50.fee_usd_cents, currency: order.currency_code })} fee`
+                              : 'Cancel — $50 fee',
+                            icon: <CancelIcon size={20} />,
+                            onClick: () => handleCancelOrder('flat_50'),
+                            disabled: isCancellingOrder || cancelFeeOptions?.fee_types?.flat_50?.enabled === false,
+                          },
+                          {
+                            label: cancelFeeOptions?.fee_types?.percentage_25
+                              ? `Cancel — 25% (${formatAmountWithSymbol({ amount: cancelFeeOptions.fee_types.percentage_25.fee_usd_cents, currency: order.currency_code })})`
+                              : 'Cancel — 25% fee',
+                            icon: <CancelIcon size={20} />,
+                            onClick: () => handleCancelOrder('percentage_25'),
+                            disabled: isCancellingOrder || cancelFeeOptions?.fee_types?.percentage_25?.enabled === false,
+                          },
+                          {
+                            label: 'Cancel — no fee',
+                            icon: <CancelIcon size={20} />,
+                            onClick: () => handleCancelOrder('none'),
+                            disabled: isCancellingOrder || cancelFeeOptions?.fee_types?.none?.enabled === false,
+                          },
+                        ]}
+                      />
+                    )
                   }
                 >
                   <div className="mt-6 flex flex-wrap gap-4 divide-x">
