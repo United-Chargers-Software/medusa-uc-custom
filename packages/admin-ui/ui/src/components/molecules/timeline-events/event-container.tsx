@@ -80,7 +80,7 @@ const EventContainer: React.FC<EventContainerProps> = ({
           <div className="flex items-center">
             <Tooltip content={moment(time).fromNow()}>
               {/* <div className="inter-small-regular text-grey-50">{moment(time).fromNow()}</div> */}
-              <div className="inter-small-regular text-grey-50">{time && new Date(time).toLocaleString()}</div>
+              <div className="inter-small-regular text-grey-50">{time && new Date(time).toLocaleString('en-US', { timeZone: 'America/Toronto' })}</div>
             </Tooltip>
             {midNode && (
               <span className="mx-2xsmall ">

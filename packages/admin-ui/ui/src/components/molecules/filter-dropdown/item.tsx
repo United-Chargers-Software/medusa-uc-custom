@@ -8,6 +8,7 @@ import clsx from "clsx"
 import moment from "moment"
 import { DateFilters } from "../../../utils/filters"
 import { CalendarComponent } from "../../atoms/date-picker/date-picker"
+import NumberScroller from "../../atoms/number-scroller"
 import Spinner from "../../atoms/spinner"
 import ArrowRightIcon from "../../fundamentals/icons/arrow-right-icon"
 import CheckIcon from "../../fundamentals/icons/check-icon"
@@ -15,6 +16,61 @@ import ChevronUpIcon from "../../fundamentals/icons/chevron-up"
 import InputField from "../input"
 
 const DAY_IN_SECONDS = 86400
+const HOURS = [...Array(24).keys()]
+const MINUTES = [...Array(60).keys()]
+
+// Returns "YYYY-MM-DD" for a Date in Ontario timezone.
+function getTorontoDateStr(date: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto" }).format(date)
+}
+
+// Converts a Unix timestamp (seconds) to "HH:MM" in Ontario timezone.
+function utcToTorontoTime(unixTs: string | number): string {
+  const d = new Date(Number(unixTs) * 1000)
+  const rawHour = parseInt(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Toronto",
+      hour: "numeric",
+      hour12: false,
+    }).format(d),
+    10,
+  )
+  const hour = Math.min(23, Math.max(0, isNaN(rawHour) ? 0 : ((rawHour % 24) + 24) % 24))
+  const rawMinute = parseInt(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Toronto",
+      minute: "2-digit",
+    }).format(d),
+    10,
+  )
+  const minute = Math.min(59, Math.max(0, isNaN(rawMinute) ? 0 : rawMinute))
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`
+}
+
+// Converts a date + time string (HH:MM) treated as Ontario (America/Toronto) local time
+// into a Unix timestamp in seconds (UTC). Handles DST automatically by trying EDT (UTC-4)
+// and EST (UTC-5) and picking the one that round-trips correctly.
+function torontoDateTimeToUnix(date: Date | null, timeStr: string): number | null {
+  if (!date) return null
+  const parts = timeStr.split(":").map(Number)
+  const hours = Math.min(23, Math.max(0, isNaN(parts[0]) ? 0 : parts[0]))
+  const minutes = Math.min(59, Math.max(0, isNaN(parts[1] ?? NaN) ? 0 : (parts[1] ?? 0)))
+  if (isNaN(hours) || isNaN(minutes)) return null
+  const [y, m, d] = moment(date).format("YYYY-MM-DD").split("-").map(Number)
+  for (const off of [4, 5]) {
+    const candidate = new Date(Date.UTC(y, m - 1, d, hours + off, minutes, 0, 0))
+    const torontoHour = parseInt(
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/Toronto",
+        hour: "2-digit",
+        hour12: false,
+      }).format(candidate),
+      10,
+    )
+    if (torontoHour === hours) return Math.floor(candidate.getTime() / 1000)
+  }
+  return Math.floor(new Date(Date.UTC(y, m - 1, d, hours + 5, minutes, 0, 0)).getTime() / 1000)
+}
 
 /**
  * @deprecated Use `FilterMenu` instead
@@ -288,38 +344,43 @@ const parseDateFilter = (filter) => {
   }
 
   if (flags.sawLt && flags.sawGt) {
-    const startDate = filter.gt
-    const endDate = filter.lt
+    const startTs = filter.gt
+    const endTs = filter.lt
+    const startDate = new Date(Number(startTs) * 1000)
+    const endDate = new Date(Number(endTs) * 1000)
 
-    if (endDate - startDate === DAY_IN_SECONDS) {
+    // Detect EqualTo: both timestamps fall on the same Ontario calendar day
+    if (getTorontoDateStr(startDate) === getTorontoDateStr(endDate)) {
       return {
         filterType: DateFilters.EqualTo,
-        value: moment.unix(startDate).toDate(),
+        value: startDate,
+        startTime: utcToTorontoTime(startTs),
+        endTime: utcToTorontoTime(endTs),
       }
     }
 
     return {
       filterType: DateFilters.Between,
-      value: moment.unix(startDate).toDate(),
-      // endDate was stored as lt = userEndDate + 24h (to include the full end day).
-      // Subtract it back so the UI shows the user's original end date, not +1 day.
-      endValue: moment.unix(endDate).subtract(1, 'day').toDate(),
+      value: startDate,
+      endValue: endDate,
+      startTime: utcToTorontoTime(startTs),
+      endTime: utcToTorontoTime(endTs),
     }
   }
 
   if (flags.sawLt) {
-    const endDate = filter.lt
     return {
       filterType: DateFilters.Before,
-      value: moment.unix(endDate).toDate(),
+      value: new Date(Number(filter.lt) * 1000),
+      startTime: utcToTorontoTime(filter.lt),
     }
   }
 
   if (flags.sawGt) {
-    const startDate = filter.gt
     return {
       filterType: DateFilters.After,
-      value: moment.unix(startDate).toDate(),
+      value: new Date(Number(filter.gt) * 1000),
+      startTime: utcToTorontoTime(filter.gt),
     }
   }
 
@@ -341,6 +402,8 @@ const DateFilter = ({
       endValue: null,
       relativeAmount: undefined,
       daysMonthsValue: "days",
+      startTime: "00:00",
+      endTime: "23:59",
       ...parsed,
     }
   }, [existingDate])
@@ -354,6 +417,17 @@ const DateFilter = ({
   )
   const [startDate, setStartDate] = useState(initialVals.value)
   const [endDate, setEndDate] = useState(initialVals.endValue)
+  const [startTime, setStartTime] = useState(initialVals.startTime)
+  const [endTime, setEndTime] = useState(initialVals.endTime)
+
+  const clampHour = (v: number) => Math.min(23, Math.max(0, isNaN(v) ? 0 : v))
+  const clampMinute = (v: number) => Math.min(59, Math.max(0, isNaN(v) ? 0 : v))
+  const [rawStartHour, rawStartMinute] = startTime.split(":").map(v => parseInt(v, 10))
+  const [rawEndHour, rawEndMinute] = endTime.split(":").map(v => parseInt(v, 10))
+  const startHour = clampHour(rawStartHour)
+  const startMinute = clampMinute(rawStartMinute)
+  const endHour = clampHour(rawEndHour)
+  const endMinute = clampMinute(rawEndMinute)
 
   useEffect(() => {
     switch (currentFilter) {
@@ -377,7 +451,7 @@ const DateFilter = ({
           filter: handleDateFormat(startDate),
         })
     }
-  }, [currentFilter, relativeAmount, daysMonthsValue, startDate, endDate])
+  }, [currentFilter, relativeAmount, daysMonthsValue, startDate, endDate, startTime, endTime])
 
   const handleDateFormat = (value: string | null) => {
     switch (currentFilter) {
@@ -392,47 +466,29 @@ const DateFilter = ({
       }
 
       case DateFilters.EqualTo: {
-        const momentToSet = atMidnight(value)
-        if (momentToSet) {
-          const day = dateToUnixTimestamp(momentToSet.toDate())
-          const nextDay = dateToUnixTimestamp(
-            addHours(momentToSet, 24).toDate()
-          )
-          return { gt: day, lt: nextDay }
-        } else {
-          return {}
-        }
+        const ts = torontoDateTimeToUnix(startDate, startTime)
+        const tsEnd = torontoDateTimeToUnix(startDate, endTime)
+        return ts !== null && tsEnd !== null
+          ? { gt: String(ts), lt: String(tsEnd) }
+          : {}
       }
 
       case DateFilters.Between: {
-        const momentStart = atMidnight(value)
-        const momentEnd = atMidnight(endDate)
-        if (momentStart && momentEnd) {
-          return {
-            gt: dateToUnixTimestamp(momentStart.toDate()),
-            lt: dateToUnixTimestamp(addHours(momentEnd, 24).toDate()),
-          }
-        } else {
-          return {}
-        }
+        const ts1 = torontoDateTimeToUnix(startDate, startTime)
+        const ts2 = torontoDateTimeToUnix(endDate, endTime)
+        return ts1 !== null && ts2 !== null
+          ? { gt: String(ts1), lt: String(ts2) }
+          : {}
       }
 
       case DateFilters.After: {
-        const momentToSet = atMidnight(value)
-        if (momentToSet) {
-          return { gt: dateToUnixTimestamp(momentToSet.toDate()) }
-        } else {
-          return {}
-        }
+        const ts = torontoDateTimeToUnix(startDate, startTime)
+        return ts !== null ? { gt: String(ts) } : {}
       }
 
       case DateFilters.Before: {
-        const momentToSet = atMidnight(value)
-        if (momentToSet) {
-          return { lt: dateToUnixTimestamp(momentToSet.toDate()) }
-        } else {
-          return {}
-        }
+        const ts = torontoDateTimeToUnix(startDate, startTime)
+        return ts !== null ? { lt: String(ts) } : {}
       }
 
       default: {
@@ -451,9 +507,11 @@ const DateFilter = ({
               className="pt-0 pb-1"
               type="number"
               placeholder="2"
+              min="1"
               value={relativeAmount}
               onChange={(e) => {
-                setRelativeAmount(e.target.value)
+                const val = parseInt(e.target.value, 10)
+                if (!isNaN(val) && val >= 1) setRelativeAmount(String(val))
               }}
             />
             <RightPopover
@@ -481,7 +539,9 @@ const DateFilter = ({
               trigger={
                 <div className="bg-grey-5 border-grey-20 inter-small-semibold text-grey-90 flex w-full items-center justify-between rounded border px-3 py-1.5">
                   <label>
-                    {startDate ? moment(startDate).format("MM.DD.YYYY") : "Start date"}
+                    {startDate
+                      ? moment(startDate).format("MM.DD.YYYY") + " " + startTime
+                      : "Start date"}
                   </label>
                   <span className="text-grey-50">
                     <ArrowRightIcon size={16} />
@@ -489,16 +549,45 @@ const DateFilter = ({
                 </div>
               }
             >
-              <CalendarComponent
-                date={startDate}
-                onChange={(date) => setStartDate(date)}
-              />
+              <div className="flex items-start">
+                <CalendarComponent
+                  date={startDate}
+                  onChange={(date) => setStartDate(date)}
+                />
+                <div className="border-grey-20 ml-1 flex items-center justify-center gap-2 border-l pl-2">
+                  <NumberScroller
+                    numbers={HOURS}
+                    selected={startHour}
+                    onSelect={(h) =>
+                      setStartTime(
+                        (prev) =>
+                          `${String(h).padStart(2, "0")}:${prev.split(":")[1] ?? "00"}`
+                      )
+                    }
+                    style={{ height: 200 }}
+                  />
+                  <span className="inter-base-semibold text-grey-40">:</span>
+                  <NumberScroller
+                    numbers={MINUTES}
+                    selected={startMinute}
+                    onSelect={(m) =>
+                      setStartTime(
+                        (prev) =>
+                          `${prev.split(":")[0] ?? "00"}:${String(m).padStart(2, "0")}`
+                      )
+                    }
+                    style={{ height: 200 }}
+                  />
+                </div>
+              </div>
             </RightPopover>
             <RightPopover
               trigger={
                 <div className="bg-grey-5 border-grey-20 inter-small-semibold text-grey-90 flex w-full items-center justify-between rounded border px-3 py-1.5">
                   <label>
-                    {endDate ? moment(endDate).format("MM.DD.YYYY") : "End date"}
+                    {endDate
+                      ? moment(endDate).format("MM.DD.YYYY") + " " + endTime
+                      : "End date"}
                   </label>
                   <span className="text-grey-50">
                     <ArrowRightIcon size={16} />
@@ -506,14 +595,124 @@ const DateFilter = ({
                 </div>
               }
             >
-              <CalendarComponent
-                date={endDate}
-                onChange={(date) => setEndDate(date)}
-              />
+              <div className="flex items-start">
+                <CalendarComponent
+                  date={endDate}
+                  onChange={(date) => setEndDate(date)}
+                />
+                <div className="border-grey-20 ml-1 flex items-center justify-center gap-2 border-l pl-2">
+                  <NumberScroller
+                    numbers={HOURS}
+                    selected={endHour}
+                    onSelect={(h) =>
+                      setEndTime(
+                        (prev) =>
+                          `${String(h).padStart(2, "0")}:${prev.split(":")[1] ?? "00"}`
+                      )
+                    }
+                    style={{ height: 200 }}
+                  />
+                  <span className="inter-base-semibold text-grey-40">:</span>
+                  <NumberScroller
+                    numbers={MINUTES}
+                    selected={endMinute}
+                    onSelect={(m) =>
+                      setEndTime(
+                        (prev) =>
+                          `${prev.split(":")[0] ?? "00"}:${String(m).padStart(2, "0")}`
+                      )
+                    }
+                    style={{ height: 200 }}
+                  />
+                </div>
+              </div>
             </RightPopover>
           </div>
         )
       case DateFilters.EqualTo:
+        return (
+          <div className="flex w-full flex-col">
+            <RightPopover
+              trigger={
+                <div className="bg-grey-5 border-grey-20 inter-small-semibold text-grey-90 flex w-full items-center justify-between rounded border px-3 py-1.5">
+                  <label>
+                    {startDate
+                      ? moment(startDate).format("MM.DD.YYYY") +
+                        " " +
+                        startTime +
+                        "–" +
+                        endTime
+                      : "-"}
+                  </label>
+                  <span className="text-grey-50">
+                    <ArrowRightIcon size={16} />
+                  </span>
+                </div>
+              }
+            >
+              <div className="flex items-start">
+                <CalendarComponent
+                  date={startDate}
+                  onChange={(date) => setStartDate(date)}
+                />
+                <div className="border-grey-20 ml-1 flex flex-col gap-2 border-l pl-2">
+                  <span className="inter-xsmall-regular text-grey-50">From</span>
+                  <div className="flex items-center gap-2">
+                    <NumberScroller
+                      numbers={HOURS}
+                      selected={startHour}
+                      onSelect={(h) =>
+                        setStartTime(
+                          (prev) =>
+                            `${String(h).padStart(2, "0")}:${prev.split(":")[1] ?? "00"}`
+                        )
+                      }
+                      style={{ height: 130 }}
+                    />
+                    <span className="inter-base-semibold text-grey-40">:</span>
+                    <NumberScroller
+                      numbers={MINUTES}
+                      selected={startMinute}
+                      onSelect={(m) =>
+                        setStartTime(
+                          (prev) =>
+                            `${prev.split(":")[0] ?? "00"}:${String(m).padStart(2, "0")}`
+                        )
+                      }
+                      style={{ height: 130 }}
+                    />
+                  </div>
+                  <span className="inter-xsmall-regular text-grey-50">To</span>
+                  <div className="flex items-center gap-2">
+                    <NumberScroller
+                      numbers={HOURS}
+                      selected={endHour}
+                      onSelect={(h) =>
+                        setEndTime(
+                          (prev) =>
+                            `${String(h).padStart(2, "0")}:${prev.split(":")[1] ?? "00"}`
+                        )
+                      }
+                      style={{ height: 130 }}
+                    />
+                    <span className="inter-base-semibold text-grey-40">:</span>
+                    <NumberScroller
+                      numbers={MINUTES}
+                      selected={endMinute}
+                      onSelect={(m) =>
+                        setEndTime(
+                          (prev) =>
+                            `${prev.split(":")[0] ?? "00"}:${String(m).padStart(2, "0")}`
+                        )
+                      }
+                      style={{ height: 130 }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </RightPopover>
+          </div>
+        )
       case DateFilters.After:
       case DateFilters.Before:
         return (
@@ -522,7 +721,9 @@ const DateFilter = ({
               trigger={
                 <div className="bg-grey-5 border-grey-20 inter-small-semibold text-grey-90 flex w-full items-center justify-between rounded border px-3 py-1.5">
                   <label>
-                    {startDate ? moment(startDate).format("MM.DD.YYYY") : "-"}
+                    {startDate
+                      ? moment(startDate).format("MM.DD.YYYY") + " " + startTime
+                      : "-"}
                   </label>
                   <span className="text-grey-50">
                     <ArrowRightIcon size={16} />
@@ -530,12 +731,37 @@ const DateFilter = ({
                 </div>
               }
             >
-              <CalendarComponent
-                date={startDate}
-                onChange={(date) => {
-                  setStartDate(date)
-                }}
-              />
+              <div className="flex items-start">
+                <CalendarComponent
+                  date={startDate}
+                  onChange={(date) => setStartDate(date)}
+                />
+                <div className="border-grey-20 ml-1 flex items-center justify-center gap-2 border-l pl-2">
+                  <NumberScroller
+                    numbers={HOURS}
+                    selected={startHour}
+                    onSelect={(h) =>
+                      setStartTime(
+                        (prev) =>
+                          `${String(h).padStart(2, "0")}:${prev.split(":")[1] ?? "00"}`
+                      )
+                    }
+                    style={{ height: 200 }}
+                  />
+                  <span className="inter-base-semibold text-grey-40">:</span>
+                  <NumberScroller
+                    numbers={MINUTES}
+                    selected={startMinute}
+                    onSelect={(m) =>
+                      setStartTime(
+                        (prev) =>
+                          `${prev.split(":")[0] ?? "00"}:${String(m).padStart(2, "0")}`
+                      )
+                    }
+                    style={{ height: 200 }}
+                  />
+                </div>
+              </div>
             </RightPopover>
           </div>
         )
