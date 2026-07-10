@@ -24,6 +24,7 @@ import {
 
 import { capitalize, update } from 'lodash';
 import moment from 'moment';
+import { formatTorontoLong, formatTorontoShort } from '../../../utils/time';
 import { useEffect, useMemo, useState } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useTranslation } from 'react-i18next';
@@ -872,7 +873,7 @@ const OrderDetails = () => {
                       </button>
                     </Tooltip>
                   }
-                  subtitle={moment(order.created_at).format('D MMMM YYYY hh:mm a')}
+                  subtitle={formatTorontoLong(order.created_at)}
                   status={<OrderStatusComponent status={isOrderCanceled ? 'canceled' : order?.status} />}
                   customActionable={
                     !hasCancellation && isSuperAdmin && (
@@ -988,7 +989,7 @@ const OrderDetails = () => {
                           currency={order.currency_code}
                           totalAmount={payment.amount}
                           totalTitle={payment.id}
-                          subtitle={`${moment(payment.created_at).format('DD MMM YYYY hh:mm')}`}
+                          subtitle={formatTorontoShort(payment.created_at)}
                         />
                         {!!payment.amount_refunded && (
                           <div className="mt-4 flex justify-between">
@@ -1033,7 +1034,7 @@ const OrderDetails = () => {
                               <div className="flex flex-col">
                                 <div className="inter-small-semibold text-grey-90">{t('details-last-refund', 'Last refund')}</div>
                                 <div className="inter-small-regular text-grey-50 mt-1">
-                                  {moment(lastRefund.created_at).format('DD MMM YYYY hh:mm')}
+                                  {formatTorontoShort(lastRefund.created_at)}
                                 </div>
                               </div>
                               <div className="flex">
