@@ -209,11 +209,13 @@ const FulfillmentLine = ({
   }, [availableQuantity, item, item.id]);
 
   const updateSerialNumber = (index: number, value: string) => {
+    // QR codes may encode extra fields after ';' — keep only the first segment
+    const normalized = value.includes(';') ? value.split(';')[0] : value;
     setSerialNumbers(prev => {
       const current = prev[item.id] || [];
       const qty = quantities[item.id] || 0;
       const next = Array.from({ length: Math.max(current.length, qty, index + 1) }, (_, i) =>
-        i === index ? value : current[i] ?? '',
+        i === index ? normalized : current[i] ?? '',
       );
       return { ...prev, [item.id]: next };
     });
