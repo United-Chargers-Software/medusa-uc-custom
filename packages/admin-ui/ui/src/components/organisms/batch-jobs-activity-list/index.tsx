@@ -75,7 +75,11 @@ const BatchJobActivityCard = (props: { batchJob: BatchJob }) => {
   const batchJob = useBatchJob(props.batchJob)
 
   const { mutate: cancelBatchJob, error: cancelBatchJobError } =
-    useAdminCancelBatchJob(batchJob.id)
+    useAdminCancelBatchJob(batchJob.id, {
+      onSuccess: () => {
+        notification("Success", "Export has been canceled", "success")
+      },
+    })
   const { mutateAsync: deleteFile } = useAdminDeleteFile()
   const { mutateAsync: createPresignedUrl } =
     useAdminCreatePresignedDownloadUrl()

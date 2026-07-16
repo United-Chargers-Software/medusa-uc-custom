@@ -1,5 +1,6 @@
 import moment from 'moment';
 import { useMemo } from 'react';
+import { formatTorontoDate, formatTorontoLong } from '../../../utils/time';
 import ReactCountryFlag from 'react-country-flag';
 import { useTranslation } from 'react-i18next';
 import { getColor } from '../../../utils/color';
@@ -91,8 +92,8 @@ const useOrderTableColums = () => {
         accessor: 'created_at',
         Cell: ({ cell: { value } }) => (
           <div>
-            <Tooltip content={moment(value).format('DD MMM YYYY hh:mm a')}>
-              {moment(value).format('DD MMM YYYY')}
+            <Tooltip content={formatTorontoLong(value)}>
+              {formatTorontoDate(value)}
             </Tooltip>
           </div>
         ),

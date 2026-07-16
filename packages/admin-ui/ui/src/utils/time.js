@@ -45,6 +45,50 @@ export const relativeDateFormatToTimestamp = (value) => {
   return result
 }
 
+// Format a date in Ontario (America/Toronto) timezone.
+// Returns a string like "9 July 2026 04:37 pm" — matches moment's 'D MMMM YYYY hh:mm a'.
+export const formatTorontoLong = (date) => {
+  const d = new Date(date)
+  const parts = {}
+  new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Toronto',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).formatToParts(d).forEach(({ type, value }) => { parts[type] = value })
+  return `${parts.day} ${parts.month} ${parts.year} ${parts.hour}:${parts.minute} ${(parts.dayPeriod || '').toLowerCase()}`
+}
+
+// Format a date in Ontario (America/Toronto) timezone.
+// Returns a string like "09 Jul 2026 04:37" — matches moment's 'DD MMM YYYY hh:mm'.
+export const formatTorontoShort = (date) => {
+  const d = new Date(date)
+  const parts = {}
+  new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Toronto',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).formatToParts(d).forEach(({ type, value }) => { parts[type] = value })
+  return `${parts.day} ${parts.month} ${parts.year} ${parts.hour}:${parts.minute}`
+}
+
+// Format only the date part in Ontario timezone: "09 Jul 2026"
+export const formatTorontoDate = (date) => {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Toronto',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(date))
+}
+
 // Takes in a value from the date picker e.g. 42|days or a timestamp
 export const formatDateFilter = (filter) => {
   return Object.entries(filter).reduce((acc, [key, value]) => {
