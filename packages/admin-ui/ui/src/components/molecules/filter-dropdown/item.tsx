@@ -63,7 +63,7 @@ function torontoDateTimeToUnix(date: Date | null, timeStr: string): number | nul
       new Intl.DateTimeFormat("en-US", {
         timeZone: "America/Toronto",
         hour: "2-digit",
-        hour12: false,
+        hourCycle: "h23",
       }).format(candidate),
       10,
     )
