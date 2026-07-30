@@ -28,8 +28,7 @@ const DeleteDialog = ({
           {extraConfirmation && (
             <div className="my-base flex flex-col">
               <span className="inter-base-regular text-grey-50 mt-1">
-                Type the name{" "}
-                <span className="font-semibold">"{entityName}"</span> to
+                Type <span className="font-semibold">"{entityName}"</span> to
                 confirm.
               </span>
               <InputField
