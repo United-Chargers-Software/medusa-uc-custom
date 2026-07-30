@@ -242,7 +242,7 @@ const OrderDetails = () => {
   const [showRefund, setShowRefund] = useState(false);
   const [fullfilmentToShip, setFullfilmentToShip] = useState(null);
 
-  type AdminCancellationFeeType = 'flat_50' | 'percentage_25' | 'none';
+  type AdminCancellationFeeType = 'flat_50' | 'percentage_25' | 'none' | 'no_refund';
   type FeeTypeOption = { enabled: boolean; fee_usd_cents: number; reason: string | null };
   type CancelFeeResponse = {
     fee_types: Record<AdminCancellationFeeType, FeeTypeOption>;
@@ -479,6 +479,12 @@ const OrderDetails = () => {
     } else if (feeType === 'percentage_25' && feeOption) {
       const feeFormatted = formatAmountWithSymbol({ amount: feeOption.fee_usd_cents, currency: order?.currency_code ?? 'usd' });
       cancelPreviewText += ` A 25% restocking fee (${feeFormatted}) will be deducted from the refund.`;
+    } else if (feeType === 'no_refund') {
+      const retained = formatAmountWithSymbol({
+        amount: cancelFeeOptions?.order_total_cents ?? order?.total ?? 0,
+        currency: order?.currency_code ?? 'usd',
+      });
+      cancelPreviewText += ` The customer will NOT be refunded — the full amount (${retained}) is retained.`;
     }
 
     const shouldDelete = await dialog({
@@ -487,7 +493,9 @@ const OrderDetails = () => {
         'details-are-you-sure-you-want-to-cancel-the-order',
         'Are you sure you want to cancel the order?',
       )}`,
-      extraConfirmation: false,
+      // Cancellation is irreversible and moves money — require typing the order number.
+      extraConfirmation: true,
+      entityName: String(order?.display_id ?? order?.id ?? ''),
     });
 
     if (!shouldDelete) {
@@ -910,6 +918,12 @@ const OrderDetails = () => {
                             icon: <CancelIcon size={20} />,
                             onClick: () => handleCancelOrder('none'),
                             disabled: isCancellingOrder || cancelFeeOptions?.fee_types?.none?.enabled === false,
+                          },
+                          {
+                            label: 'Cancel — no refund',
+                            icon: <CancelIcon size={20} />,
+                            onClick: () => handleCancelOrder('no_refund'),
+                            disabled: isCancellingOrder || cancelFeeOptions?.fee_types?.no_refund?.enabled === false,
                           },
                         ]}
                       />
